@@ -21,6 +21,9 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Socially",
   description: "Made with ❤️ by Tahsin",
+  icons: {
+    icon: '/logo.ico'
+  }
 };
 
 export default function RootLayout({
