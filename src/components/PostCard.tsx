@@ -95,6 +95,8 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                                         {post.author.name}
                                     </Link>
                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                        <Link href={`/profile/${post.author.username}`}>@{post.author.username}</Link>
+                                        <span>•</span>
                                         <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
                                     </div>
                                 </div>
@@ -166,7 +168,7 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="font-medium text-sm">{comment.author.name}</span>
                                                 <span className="text-sm text-muted-foreground">
-                                                    @{comment.author.username}
+                                                @{comment.author.username}
                                                 </span>
                                                 <span className="text-sm text-muted-foreground">·</span>
                                                 <span className="text-sm text-muted-foreground">
