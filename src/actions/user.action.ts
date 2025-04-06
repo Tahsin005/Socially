@@ -39,7 +39,7 @@ export async function syncUser() {
 export async function getUserByClerkId(clerkId: string) {
     return prisma.user.findUnique({
         where: {
-            clerkId,
+            clerkId: clerkId,
         },
         include: {
             _count: {
