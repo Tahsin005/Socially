@@ -17,7 +17,7 @@ A modern social media platform where users can register, log in, interact with p
 - **Create & Delete Posts**: Users can create posts, share their thoughts, and delete their posts when needed.
 - **Like & Comment on Posts**: Engage with others by liking and commenting on posts.
 - **Notifications**: Users receive notifications for activities like follows, comments, and likes on their posts.
-- **Post Media**: Users can upload images and videos with their posts to enrich their content.
+- **Post Media**: Users can upload image with their posts to enrich their content.
 - **Responsive Design**: The platform is mobile-friendly and optimized for all screen sizes.
 - **Security**: Secure API routes with JWT tokens and password hashing to protect user data.
 
