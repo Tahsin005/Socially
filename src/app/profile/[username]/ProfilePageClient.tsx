@@ -22,7 +22,6 @@ import { SignInButton, useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import {
     CalendarIcon,
-    EditIcon,
     FileTextIcon,
     HeartIcon,
     LinkIcon,
