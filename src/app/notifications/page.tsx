@@ -1,8 +1,8 @@
-'use client';
-
 import { Suspense } from "react";
 import { NotificationsSkeleton } from "@/components/NotificationSkeleton";
 import NotificationList from "./NotificationList";
+
+export const dynamic = "force-dynamic";
 
 export default function NotificationsPage() {
   return (
