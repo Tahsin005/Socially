@@ -1,12 +1,5 @@
-import { Loader } from 'lucide-react'
-import React from 'react'
+import { ProfileSkeleton } from "@/components/ProfileSkeleton";
 
-function Loading() {
-    return (
-        <div className='flex items-center justify-center min-h-screen h-48'>
-            <p>Please wait while we load the profile...</p>
-        </div>
-    )
+export default function Loading() {
+  return <ProfileSkeleton />;
 }
-
-export default Loading

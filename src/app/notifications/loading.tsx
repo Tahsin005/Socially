@@ -1,12 +1,5 @@
-import { Loader } from 'lucide-react'
-import React from 'react'
+import { NotificationsSkeleton } from "@/components/NotificationSkeleton";
 
-function Loading() {
-    return (
-        <div className='flex items-center justify-center min-h-screen h-48'>
-            <Loader size={100} className='animate-spin' />
-        </div>
-    )
+export default function Loading() {
+  return <NotificationsSkeleton />;
 }
-
-export default Loading

@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-
 import HomePage from "@/components/HomePage";
+import { FeedSkeleton } from "@/components/FeedSkeleton";
 
 export default function Home() {
   return (
     <main>
-      <Suspense fallback={<div className="text-center py-10">Loading feed...</div>}>
+      <Suspense fallback={<FeedSkeleton />}>
         <HomePage />
       </Suspense>
     </main>

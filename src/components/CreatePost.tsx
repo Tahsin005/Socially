@@ -54,7 +54,6 @@ function CreatePost() {
                                 disabled={isPosting}
                             />
                     </div>
-                    {/* Handle Image Upload */}
                     {(showImageUpload || imageUrl) && (
                         <div className="border rounded-lg p-4">
                             <ImageUpload

@@ -86,7 +86,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                             </Avatar>
                         </Link>
 
-                        {/* post header and text content */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 truncate">
@@ -102,7 +101,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                                         <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
                                     </div>
                                 </div>
-                                {/* current user is the post author */}
                                 {dbUserId === post.author.id && (
                                     <DeleteAlertDialog isDeleting={isDeleting} onDelete={handleDeletePost} />
                                 )}
@@ -117,7 +115,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                         </div>
                     )}
 
-                    {/* like and comment buttons */}
                     <div className="flex items-center pt-2 space-x-4">
                         {user ? (
                             <Button
@@ -157,7 +154,6 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                         </Button>
                     </div>
 
-                    {/* comments */}
                     {showComments && (
                         <div className="space-y-4 pt-4 border-t">
                             <div className="space-y-4">

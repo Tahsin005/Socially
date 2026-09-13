@@ -109,7 +109,6 @@ function ProfilePageClient({
                                 <p className="text-muted-foreground">@{user.username}</p>
                                 <p className="mt-2 text-sm">{user.bio}</p>
 
-                                {/* profile stats */}
                                 <div className="w-full mt-6">
                                     <div className="flex justify-between mb-4">
                                         <div>
@@ -129,7 +128,6 @@ function ProfilePageClient({
                                     </div>
                                 </div>
 
-                                {/* follow or edit actions */}
                                 {!currentUser ? (
                                     <SignInButton mode="modal">
                                         <Button className="w-full mt-4">Follow</Button>
@@ -150,7 +148,6 @@ function ProfilePageClient({
                                     </Button>
                                 )}
 
-                                {/* location & website */}
                                 <div className="w-full mt-6 space-y-2 text-sm">
                                     {user.location && (
                                         <div className="flex items-center text-muted-foreground">
