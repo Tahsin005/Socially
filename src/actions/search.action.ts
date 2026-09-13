@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { getDbUserId } from "./user.action";
 import { PostWithDetails } from "./post.action";
+import { postInclude } from "@/lib/postInclude";
 
 export interface SearchUser {
   id: string;
@@ -17,72 +18,6 @@ export interface SearchUser {
     posts: number;
   };
 }
-
-const postInclude = {
-  author: {
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      username: true,
-    },
-  },
-  comments: {
-    include: {
-      author: {
-        select: {
-          id: true,
-          username: true,
-          image: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "asc" as const,
-    },
-  },
-  likes: {
-    select: {
-      userId: true,
-      type: true,
-    },
-  },
-  bookmarks: {
-    select: {
-      userId: true,
-    },
-  },
-  poll: {
-    include: {
-      options: {
-        include: {
-          _count: {
-            select: {
-              votes: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "asc" as const,
-        },
-      },
-      votes: {
-        select: {
-          userId: true,
-          pollOptionId: true,
-        },
-      },
-    },
-  },
-  _count: {
-    select: {
-      likes: true,
-      comments: true,
-      bookmarks: true,
-    },
-  },
-};
 
 export async function searchGlobal(query: string, limit = 5) {
   try {

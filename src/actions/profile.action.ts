@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
+import { postInclude } from "@/lib/postInclude";
 
 export async function getProfileByUsername(username: string) {
     try {
@@ -34,72 +35,6 @@ export async function getProfileByUsername(username: string) {
         throw new Error("Failed to fetch profile");
     }
 }
-
-const postInclude = {
-    author: {
-        select: {
-            id: true,
-            name: true,
-            username: true,
-            image: true,
-        },
-    },
-    comments: {
-        include: {
-            author: {
-                select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                    image: true,
-                },
-            },
-        },
-        orderBy: {
-            createdAt: "asc" as const,
-        },
-    },
-    likes: {
-        select: {
-            userId: true,
-            type: true,
-        },
-    },
-    bookmarks: {
-        select: {
-            userId: true,
-        },
-    },
-    poll: {
-        include: {
-            options: {
-                include: {
-                    _count: {
-                        select: {
-                            votes: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    createdAt: "asc" as const,
-                },
-            },
-            votes: {
-                select: {
-                    userId: true,
-                    pollOptionId: true,
-                },
-            },
-        },
-    },
-    _count: {
-        select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-        },
-    },
-};
 
 export async function getUserPosts(userId: string) {
     try {

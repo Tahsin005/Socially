@@ -5,72 +5,7 @@ import { getDbUserId } from "./user.action";
 import prisma from "@/lib/prisma";
 import { createCommentSchema, createPostSchema, CreatePollInput, ReactionType, reactionTypeSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/mention";
-
-const postInclude = {
-    author: {
-        select: {
-            id: true,
-            name: true,
-            image: true,
-            username: true,
-        },
-    },
-    comments: {
-        include: {
-            author: {
-                select: {
-                    id: true,
-                    username: true,
-                    image: true,
-                    name: true,
-                },
-            },
-        },
-        orderBy: {
-            createdAt: "asc" as const,
-        },
-    },
-    likes: {
-        select: {
-            userId: true,
-            type: true,
-        },
-    },
-    bookmarks: {
-        select: {
-            userId: true,
-        },
-    },
-    poll: {
-        include: {
-            options: {
-                include: {
-                    _count: {
-                        select: {
-                            votes: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    createdAt: "asc" as const,
-                },
-            },
-            votes: {
-                select: {
-                    userId: true,
-                    pollOptionId: true,
-                },
-            },
-        },
-    },
-    _count: {
-        select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-        },
-    },
-};
+import { postInclude } from "@/lib/postInclude";
 
 export type PostWithDetails = NonNullable<Awaited<ReturnType<typeof getPostById>>>;
 
@@ -589,13 +524,17 @@ export async function votePoll(pollId: string, pollOptionId: string) {
 
         const poll = await prisma.poll.findUnique({
             where: { id: pollId },
-            select: { expiresAt: true },
+            select: { expiresAt: true, options: { select: { id: true } } },
         });
 
         if (!poll) return { success: false, error: "Poll not found" };
 
         if (new Date(poll.expiresAt) < new Date()) {
             return { success: false, error: "This poll has ended" };
+        }
+
+        if (!poll.options.some((option) => option.id === pollOptionId)) {
+            return { success: false, error: "Invalid poll option" };
         }
 
         const existingVote = await prisma.pollVote.findUnique({

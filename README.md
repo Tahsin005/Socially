@@ -19,7 +19,7 @@ A modern social media platform where users can register, log in, interact with p
 - **Notifications**: Users receive notifications for activities like follows, comments, and likes on their posts.
 - **Post Media**: Users can upload image with their posts to enrich their content.
 - **Responsive Design**: The platform is mobile-friendly and optimized for all screen sizes.
-- **Security**: Secure API routes with JWT tokens and password hashing to protect user data.
+- **Security**: Server actions authorize every request through the Clerk session, so user data stays protected.
 
 ## 🔧 Setup
 

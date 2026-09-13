@@ -34,6 +34,8 @@ function RouteTransitionListener({
   // Intercept internal link clicks to display full-screen loader during navigation
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
+      if (e.defaultPrevented) return;
+
       const target = (e.target as HTMLElement).closest('a');
       if (!target) return;
 
@@ -64,9 +66,9 @@ function RouteTransitionListener({
       }
     };
 
-    document.addEventListener('click', handleLinkClick, { capture: true });
+    document.addEventListener('click', handleLinkClick);
     return () => {
-      document.removeEventListener('click', handleLinkClick, { capture: true });
+      document.removeEventListener('click', handleLinkClick);
     };
   }, [setIsNavigating]);
 
