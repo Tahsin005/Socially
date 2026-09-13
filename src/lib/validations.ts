@@ -63,3 +63,13 @@ export const updateProfileSchema = z.object({
 export const reactionTypeSchema = z.enum(["LIKE", "FIRE", "CLAP", "IDEA", "LAUGH"]);
 export type ReactionType = z.infer<typeof reactionTypeSchema>;
 
+export const sendMessageSchema = z.object({
+  conversationId: z.string().min(1, "Conversation ID is required"),
+  content: z
+    .string()
+    .trim()
+    .min(1, "Message cannot be empty")
+    .max(2000, "Message cannot exceed 2000 characters"),
+});
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+

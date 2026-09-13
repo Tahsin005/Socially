@@ -1,30 +1,27 @@
-import { BellIcon, HomeIcon, UserIcon } from "lucide-react";
+import { BellIcon, UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import ModeToggle from "./ModeToggle";
 import { currentUser } from "@clerk/nextjs/server";
+import MessagesNavButton from "./MessagesNavButton";
 
 interface DesktopNavbarProps {
     unreadCount?: number;
+    unreadMessagesCount?: number;
 }
 
-async function DesktopNavbar({ unreadCount = 0 }: DesktopNavbarProps) {
+async function DesktopNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: DesktopNavbarProps) {
     const user = await currentUser();
 
     return (
         <div className="hidden md:flex items-center space-x-4">
             <ModeToggle />
 
-            <Button variant="ghost" className="flex items-center gap-2" asChild>
-                <Link href="/">
-                    <HomeIcon className="w-4 h-4" />
-                    <span className="hidden lg:inline">Home</span>
-                </Link>
-            </Button>
-
             {user ? (
                 <>
+                    <MessagesNavButton initialCount={unreadMessagesCount} />
+
                     <Button variant="ghost" className="flex items-center gap-2" asChild>
                         <Link href="/notifications">
                             <div className="relative flex items-center">

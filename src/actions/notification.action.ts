@@ -82,8 +82,6 @@ export async function markNotificationsAsRead(notificationIds: string[]) {
             },
         });
 
-        revalidatePath("/", "layout");
-        revalidatePath("/notifications");
         return { success: true };
     } catch (error) {
         console.error("Error marking notifications as read:", error);

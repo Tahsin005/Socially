@@ -28,7 +28,9 @@ import {
     HeartIcon,
     LinkIcon,
     MapPinIcon,
+    MessageSquareIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import FollowersDialog from "@/components/FollowersDialog";
@@ -185,14 +187,22 @@ function ProfilePageClient({
                                         Edit Profile
                                     </Button>
                                 ) : (
-                                    <Button
-                                        className="w-full mt-4"
-                                        onClick={handleFollow}
-                                        disabled={isUpdatingFollow}
-                                        variant={isFollowing ? "outline" : "default"}
-                                    >
-                                        {isFollowing ? "Unfollow" : "Follow"}
-                                    </Button>
+                                    <div className="flex gap-2 w-full mt-4">
+                                        <Button
+                                            className="flex-1"
+                                            onClick={handleFollow}
+                                            disabled={isUpdatingFollow}
+                                            variant={isFollowing ? "outline" : "default"}
+                                        >
+                                            {isFollowing ? "Unfollow" : "Follow"}
+                                        </Button>
+                                        <Button variant="outline" asChild>
+                                            <Link href={`/messages?userId=${user.id}`}>
+                                                <MessageSquareIcon className="size-4 mr-1.5" />
+                                                Message
+                                            </Link>
+                                        </Button>
+                                    </div>
                                 )}
 
                                 <div className="w-full mt-6 space-y-2 text-sm">

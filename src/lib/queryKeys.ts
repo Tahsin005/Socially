@@ -23,4 +23,10 @@ export const queryKeys = {
     all: ['notifications'] as const,
     unreadCount: () => [...queryKeys.notifications.all, 'unread-count'] as const,
   },
+  messages: {
+    all: ['messages'] as const,
+    conversations: () => [...queryKeys.messages.all, 'conversations'] as const,
+    thread: (conversationId: string) => [...queryKeys.messages.all, 'thread', conversationId] as const,
+    unreadCount: () => [...queryKeys.messages.all, 'unread-count'] as const,
+  },
 };

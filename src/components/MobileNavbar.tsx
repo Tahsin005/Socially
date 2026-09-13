@@ -21,12 +21,14 @@ import { useState } from "react";
 import { useAuth, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import MessagesNavButton from "./MessagesNavButton";
 
 interface MobileNavbarProps {
   unreadCount?: number;
+  unreadMessagesCount?: number;
 }
 
-function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
+function MobileNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: MobileNavbarProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { isSignedIn } = useAuth();
   const { user } = useUser();
@@ -35,6 +37,8 @@ function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
   const profileLink = user
     ? `/profile/${user.username ?? user.emailAddresses[0]?.emailAddress.split("@")[0]}`
     : "/profile";
+
+  const hasAnyUnread = unreadCount > 0 || unreadMessagesCount > 0;
 
   return (
     <div className="flex md:hidden items-center space-x-1">
@@ -59,8 +63,8 @@ function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
             <MenuIcon className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-2 right-2 size-2 rounded-full bg-red-500" />
+            {hasAnyUnread && (
+              <span className="absolute top-2 right-2 size-2 rounded-full bg-primary" />
             )}
           </Button>
         </SheetTrigger>
@@ -95,6 +99,12 @@ function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
 
             {isSignedIn ? (
               <>
+                <MessagesNavButton
+                  initialCount={unreadMessagesCount}
+                  mobile
+                  onItemClick={() => setShowMobileMenu(false)}
+                />
+
                 <Button
                   variant="ghost"
                   className="flex items-center justify-between w-full"

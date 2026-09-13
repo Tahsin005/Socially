@@ -7,11 +7,13 @@ import { currentUser } from '@clerk/nextjs/server'
 import { syncUser } from '@/actions/user.action'
 
 import { getUnreadNotificationCount } from '@/actions/notification.action'
+import { getUnreadMessagesCount } from '@/actions/message.action'
 
 async function Navbar() {
     const user = await currentUser();
     if (user) await syncUser();
     const unreadCount = user ? await getUnreadNotificationCount() : 0;
+    const unreadMessagesCount = user ? await getUnreadMessagesCount() : 0;
 
     return (
         <nav className="sticky top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
@@ -28,8 +30,8 @@ async function Navbar() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <DesktopNavbar unreadCount={unreadCount} />
-                        <MobileNavbar unreadCount={unreadCount} />
+                        <DesktopNavbar unreadCount={unreadCount} unreadMessagesCount={unreadMessagesCount} />
+                        <MobileNavbar unreadCount={unreadCount} unreadMessagesCount={unreadMessagesCount} />
                     </div>
                 </div>
             </div>
