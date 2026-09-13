@@ -5,6 +5,7 @@ import {
   LogOutIcon,
   MenuIcon,
   MoonIcon,
+  SearchIcon,
   SunIcon,
   UserIcon,
 } from "lucide-react";
@@ -36,12 +37,18 @@ function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
     : "/profile";
 
   return (
-    <div className="flex md:hidden items-center space-x-2">
+    <div className="flex md:hidden items-center space-x-1">
+      <Button variant="ghost" size="icon" asChild>
+        <Link href="/search" title="Search">
+          <SearchIcon className="h-5 w-5" />
+          <span className="sr-only">Search</span>
+        </Link>
+      </Button>
+
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="mr-2"
       >
         <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -66,10 +73,23 @@ function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
               variant="ghost"
               className="flex items-center gap-3 justify-start"
               asChild
+              onClick={() => setShowMobileMenu(false)}
             >
               <Link href="/">
                 <HomeIcon className="w-4 h-4" />
                 Home
+              </Link>
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="flex items-center gap-3 justify-start"
+              asChild
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <Link href="/search">
+                <SearchIcon className="w-4 h-4" />
+                Search
               </Link>
             </Button>
 
