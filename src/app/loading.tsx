@@ -1,5 +1,5 @@
-import { FeedSkeleton } from "@/components/FeedSkeleton";
+import GlobalFullScreenLoader from "@/components/GlobalFullScreenLoader";
 
 export default function Loading() {
-  return <FeedSkeleton />;
+  return <GlobalFullScreenLoader message="Loading..." />;
 }

@@ -76,3 +76,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+#nprogress .bar {
+  background: linear-gradient(90deg, #3b82f6, #6366f1, #a855f7) !important;
+  height: 3px !important;
+}
+
+#nprogress .peg {
+  box-shadow: 0 0 10px #6366f1, 0 0 5px #3b82f6 !important;
+}
