@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
 import prisma from "@/lib/prisma";
-import { createCommentSchema, createPostSchema, ReactionType, reactionTypeSchema } from "@/lib/validations";
+import { createCommentSchema, createPostSchema, CreatePollInput, ReactionType, reactionTypeSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/mention";
 
 const postInclude = {
@@ -41,6 +41,28 @@ const postInclude = {
             userId: true,
         },
     },
+    poll: {
+        include: {
+            options: {
+                include: {
+                    _count: {
+                        select: {
+                            votes: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "asc" as const,
+                },
+            },
+            votes: {
+                select: {
+                    userId: true,
+                    pollOptionId: true,
+                },
+            },
+        },
+    },
     _count: {
         select: {
             likes: true,
@@ -52,13 +74,13 @@ const postInclude = {
 
 export type PostWithDetails = NonNullable<Awaited<ReturnType<typeof getPostById>>>;
 
-export async function createPost(content: string, image: string) {
+export async function createPost(content: string, image: string, poll?: CreatePollInput) {
     try {
         const userId = await getDbUserId();
 
         if (!userId) return { success: false, error: "Unauthorized" };
 
-        const validation = createPostSchema.safeParse({ content, image });
+        const validation = createPostSchema.safeParse({ content, image, poll });
         if (!validation.success) {
             return { success: false, error: validation.error.issues[0]?.message || "Invalid input" };
         }
@@ -68,6 +90,18 @@ export async function createPost(content: string, image: string) {
                 content: validation.data.content,
                 image: validation.data.image || null,
                 authorId: userId,
+                ...(validation.data.poll
+                    ? {
+                          poll: {
+                              create: {
+                                  expiresAt: new Date(Date.now() + validation.data.poll.durationHours * 60 * 60 * 1000),
+                                  options: {
+                                      create: validation.data.poll.options.map((text) => ({ text })),
+                                  },
+                              },
+                          },
+                      }
+                    : {}),
             },
             include: postInclude,
         });
@@ -545,5 +579,50 @@ export async function getUserBookmarkedPosts(userId: string) {
     } catch (error) {
         console.error("Error fetching bookmarked posts:", error);
         return [];
+    }
+}
+
+export async function votePoll(pollId: string, pollOptionId: string) {
+    try {
+        const userId = await getDbUserId();
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const poll = await prisma.poll.findUnique({
+            where: { id: pollId },
+            select: { expiresAt: true },
+        });
+
+        if (!poll) return { success: false, error: "Poll not found" };
+
+        if (new Date(poll.expiresAt) < new Date()) {
+            return { success: false, error: "This poll has ended" };
+        }
+
+        const existingVote = await prisma.pollVote.findUnique({
+            where: {
+                userId_pollId: {
+                    userId,
+                    pollId,
+                },
+            },
+        });
+
+        if (existingVote) {
+            return { success: false, error: "You have already voted on this poll" };
+        }
+
+        await prisma.pollVote.create({
+            data: {
+                pollId,
+                pollOptionId,
+                userId,
+            },
+        });
+
+        revalidatePath("/");
+        return { success: true, pollOptionId };
+    } catch (error) {
+        console.error("Failed to vote on poll:", error);
+        return { success: false, error: "Failed to submit vote" };
     }
 }

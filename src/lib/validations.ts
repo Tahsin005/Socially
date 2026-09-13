@@ -1,13 +1,32 @@
 import { z } from "zod";
 
+export const pollDurationSchema = z.number().int().min(1).max(168).default(24);
+
+export const createPollSchema = z.object({
+  options: z
+    .array(z.string().trim().min(1, "Option cannot be empty").max(80, "Option cannot exceed 80 characters"))
+    .min(2, "Poll must have at least 2 options")
+    .max(4, "Poll cannot have more than 4 options"),
+  durationHours: pollDurationSchema,
+});
+
+export type CreatePollInput = z.infer<typeof createPollSchema>;
+
 export const createPostSchema = z
   .object({
     content: z.string().max(1000, "Content cannot exceed 1000 characters").default(""),
     image: z.string().default(""),
+    poll: createPollSchema.optional(),
   })
-  .refine((data) => data.content.trim().length > 0 || data.image.trim().length > 0, {
-    message: "Post must have either text content or an image",
-  });
+  .refine(
+    (data) =>
+      data.content.trim().length > 0 ||
+      data.image.trim().length > 0 ||
+      Boolean(data.poll && data.poll.options.length >= 2),
+    {
+      message: "Post must have text content, an image, or a poll",
+    }
+  );
 
 export const createCommentSchema = z.object({
   postId: z.string().min(1, "Post ID is required"),

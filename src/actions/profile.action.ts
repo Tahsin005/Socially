@@ -70,6 +70,28 @@ const postInclude = {
             userId: true,
         },
     },
+    poll: {
+        include: {
+            options: {
+                include: {
+                    _count: {
+                        select: {
+                            votes: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "asc" as const,
+                },
+            },
+            votes: {
+                select: {
+                    userId: true,
+                    pollOptionId: true,
+                },
+            },
+        },
+    },
     _count: {
         select: {
             likes: true,

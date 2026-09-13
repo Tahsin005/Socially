@@ -17,6 +17,7 @@ import { ReactionType } from "@/lib/validations";
 import ReactionPicker, { REACTION_CONFIGS } from "./ReactionPicker";
 import ReactionsDialog from "./ReactionsDialog";
 import MentionText from "./MentionText";
+import PollView from "./PollView";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -290,6 +291,10 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
                         <div className="rounded-lg overflow-hidden">
                             <img src={post.image} alt="Post content" className="w-full h-auto object-cover" />
                         </div>
+                    )}
+
+                    {post.poll && (
+                        <PollView poll={post.poll} currentUserId={dbUserId} />
                     )}
 
                     <div className="flex items-center justify-between pt-2">
