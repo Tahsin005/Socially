@@ -153,12 +153,18 @@ export default function ConversationList({
           })
         ) : (
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground text-sm">
-            <p className="font-medium text-foreground">No conversations yet</p>
-            <p className="text-xs mt-1 mb-4">Start chatting with users across the platform.</p>
-            <Button size="sm" onClick={onNewChat} className="rounded-lg">
-              <PlusIcon className="size-4 mr-1.5" />
-              Start a Conversation
-            </Button>
+            {filterQuery.trim() ? (
+              <p className="font-medium text-foreground">No conversations match your search</p>
+            ) : (
+              <>
+                <p className="font-medium text-foreground">No conversations yet</p>
+                <p className="text-xs mt-1 mb-4">Start chatting with users across the platform.</p>
+                <Button size="sm" onClick={onNewChat} className="rounded-lg">
+                  <PlusIcon className="size-4 mr-1.5" />
+                  Start a Conversation
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>

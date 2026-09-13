@@ -172,7 +172,7 @@ export default function SearchPageClient({
                     <UsersIcon className="size-4 text-primary" />
                     <span>People</span>
                   </h3>
-                  {users.length > 3 && (
+                  {users.length > 4 && (
                     <Button
                       variant="ghost"
                       size="sm"

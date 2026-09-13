@@ -187,11 +187,14 @@ export async function getMessages(conversationId: string) {
           select: { id: true, name: true, username: true, image: true },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
       take: 150,
     });
 
-    return { success: true, messages: messages as MessageWithSender[] };
+    return {
+      success: true,
+      messages: messages.reverse() as MessageWithSender[],
+    };
   } catch (error) {
     console.error("Error fetching messages:", error);
     return { success: false, error: "Failed to fetch messages", messages: [] };

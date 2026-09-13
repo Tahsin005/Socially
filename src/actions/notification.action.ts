@@ -71,8 +71,12 @@ export async function getUnreadNotificationCount() {
 
 export async function markNotificationsAsRead(notificationIds: string[]) {
   try {
+        const userId = await getDbUserId();
+        if (!userId) return { success: false, error: "Unauthorized" };
+
         await prisma.notification.updateMany({
             where: {
+                userId,
                 id: {
                     in: notificationIds,
                 },

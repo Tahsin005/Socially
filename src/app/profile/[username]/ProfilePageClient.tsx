@@ -126,7 +126,8 @@ function ProfilePageClient({
 
     const isOwnProfile =
         currentUser?.username === user.username ||
-        currentUser?.emailAddresses[0].emailAddress.split("@")[0] === user.username;
+        currentUser?.primaryEmailAddress?.emailAddress?.split("@")[0] === user.username ||
+        currentUser?.emailAddresses?.[0]?.emailAddress?.split("@")[0] === user.username;
 
     const formattedDate = format(new Date(user.createdAt), "MMMM yyyy");
 
@@ -280,7 +281,7 @@ function ProfilePageClient({
                     <TabsContent value="likes" className="mt-6">
                         <div className="space-y-6">
                             {likedPosts.length > 0 ? (
-                                likedPosts.map((post) => <PostCard key={post.id} post={post} dbUserId={user.id} />)
+                                likedPosts.map((post) => <PostCard key={post.id} post={post} dbUserId={dbUserId} />)
                             ) : (
                                 <div className="text-center py-8 text-muted-foreground">No liked posts to show</div>
                             )}
