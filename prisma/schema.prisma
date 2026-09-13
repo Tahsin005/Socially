@@ -117,6 +117,7 @@ enum NotificationType {
   LIKE
   COMMENT
   FOLLOW
+  MENTION
 }
 
 enum ReactionType {

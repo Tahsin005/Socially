@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { ReactionType } from "@/lib/validations";
 import ReactionPicker, { REACTION_CONFIGS } from "./ReactionPicker";
 import ReactionsDialog from "./ReactionsDialog";
+import MentionText from "./MentionText";
 
 type Post = PostWithDetails;
 
@@ -268,7 +269,9 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
                                     <DeleteAlertDialog isDeleting={isDeleting} onDelete={handleDeletePost} />
                                 )}
                             </div>
-                            <p className="mt-2 text-sm text-foreground break-words">{post.content}</p>
+                            <p className="mt-2 text-sm text-foreground break-words">
+                                <MentionText content={post.content} />
+                            </p>
                         </div>
                     </div>
 
@@ -452,7 +455,9 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
                                                     </Button>
                                                 )}
                                             </div>
-                                            <p className="text-sm break-words mt-0.5">{comment.content}</p>
+                                            <p className="text-sm break-words mt-0.5">
+                                                <MentionText content={comment.content} />
+                                            </p>
                                         </div>
                                     </div>
                                 ))}

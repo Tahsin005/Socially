@@ -3,7 +3,8 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import { HeartIcon, MessageCircleIcon, UserPlusIcon } from "lucide-react";
+import { AtSignIcon, HeartIcon, MessageCircleIcon, UserPlusIcon } from "lucide-react";
+import MentionText from "@/components/MentionText";
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -13,6 +14,8 @@ const getNotificationIcon = (type: string) => {
       return <MessageCircleIcon className="size-4 text-blue-500" />;
     case "FOLLOW":
       return <UserPlusIcon className="size-4 text-green-500" />;
+    case "MENTION":
+      return <AtSignIcon className="size-4 text-purple-500" />;
     default:
       return null;
   }
@@ -76,18 +79,22 @@ export default async function NotificationList() {
                         ? "started following you"
                         : notification.type === "LIKE"
                         ? "reacted to your post"
+                        : notification.type === "MENTION"
+                        ? (notification.commentId ? "mentioned you in a comment" : "mentioned you in a post")
                         : "commented on your post"}
                     </span>
                   </div>
 
                   {notification.post &&
-                  (notification.type === "LIKE" || notification.type === "COMMENT") && (
+                  (notification.type === "LIKE" || notification.type === "COMMENT" || notification.type === "MENTION") && (
                     <div className="pl-6 space-y-2">
                       <Link
                         href={`/post/${notification.postId}`}
                         className="block text-sm text-muted-foreground rounded-md p-2 bg-muted/30 mt-2 hover:bg-muted/60 transition-colors"
                       >
-                        <p>{notification.post.content}</p>
+                        <p>
+                          <MentionText content={notification.post.content} asLink={false} />
+                        </p>
                         {notification.post.image && (
                           <img
                             src={notification.post.image}
@@ -97,9 +104,9 @@ export default async function NotificationList() {
                         )}
                       </Link>
 
-                      {notification.type === "COMMENT" && notification.comment && (
+                      {((notification.type === "COMMENT" || notification.type === "MENTION") && notification.comment) && (
                         <div className="text-sm p-2 bg-accent/50 rounded-md">
-                          {notification.comment.content}
+                          <MentionText content={notification.comment.content} asLink={false} />
                         </div>
                       )}
                     </div>

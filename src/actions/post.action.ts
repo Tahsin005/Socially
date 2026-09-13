@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
 import prisma from "@/lib/prisma";
 import { createCommentSchema, createPostSchema, ReactionType, reactionTypeSchema } from "@/lib/validations";
+import { extractMentions } from "@/lib/mention";
 
 export async function createPost(content: string, image: string) {
     try {
@@ -23,6 +24,36 @@ export async function createPost(content: string, image: string) {
                 authorId: userId,
             },
         });
+
+        // Notify mentioned users
+        const mentionedUsernames = extractMentions(validation.data.content);
+        if (mentionedUsernames.length > 0) {
+            const mentionedUsers = await prisma.user.findMany({
+                where: {
+                    username: {
+                        in: mentionedUsernames,
+                        mode: "insensitive",
+                    },
+                    id: {
+                        not: userId, // Don't notify self
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            if (mentionedUsers.length > 0) {
+                await prisma.notification.createMany({
+                    data: mentionedUsers.map((u) => ({
+                        type: "MENTION",
+                        userId: u.id,
+                        creatorId: userId,
+                        postId: post.id,
+                    })),
+                });
+            }
+        }
 
         revalidatePath("/");
         return { success: true, post };
@@ -317,6 +348,24 @@ export async function createComment(postId: string, content: string) {
 
         if (!post) throw new Error("Post not found");
 
+        const mentionedUsernames = extractMentions(validation.data.content);
+        const mentionedUsers = mentionedUsernames.length > 0
+            ? await prisma.user.findMany({
+                where: {
+                    username: {
+                        in: mentionedUsernames,
+                        mode: "insensitive",
+                    },
+                    id: {
+                        not: userId, // Don't notify self
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            })
+            : [];
+
         const [comment] = await prisma.$transaction(async (tx) => {
             const newComment = await tx.comment.create({
                 data: {
@@ -336,7 +385,22 @@ export async function createComment(postId: string, content: string) {
                 },
             });
 
-            if (post.authorId !== userId) {
+            // Create MENTION notifications for mentioned users
+            for (const u of mentionedUsers) {
+                await tx.notification.create({
+                    data: {
+                        type: "MENTION",
+                        userId: u.id,
+                        creatorId: userId,
+                        postId: validation.data.postId,
+                        commentId: newComment.id,
+                    },
+                });
+            }
+
+            // Create COMMENT notification for post author only if they weren't already notified via MENTION
+            const isAuthorMentioned = mentionedUsers.some((u) => u.id === post.authorId);
+            if (post.authorId !== userId && !isAuthorMentioned) {
                 await tx.notification.create({
                     data: {
                         type: "COMMENT",
