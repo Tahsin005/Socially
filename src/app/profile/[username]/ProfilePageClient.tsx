@@ -32,6 +32,9 @@ import {
 import { useState } from "react";
 import toast from "react-hot-toast";
 import FollowersDialog from "@/components/FollowersDialog";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 
 type User = Awaited<ReturnType<typeof getProfileByUsername>>;
 type Posts = Awaited<ReturnType<typeof getUserPosts>>;
@@ -54,11 +57,20 @@ function ProfilePageClient({
     user,
 }: ProfilePageClientProps) {
     const { user: currentUser } = useUser();
+    const router = useRouter();
+    const queryClient = useQueryClient();
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [showFollowersModal, setShowFollowersModal] = useState(false);
     const [followersModalTab, setFollowersModalTab] = useState<"followers" | "following">("followers");
     const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+    const [followersCount, setFollowersCount] = useState(user._count.followers);
+    const [prevFollowersCount, setPrevFollowersCount] = useState(user._count.followers);
     const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
+
+    if (user._count.followers !== prevFollowersCount) {
+        setPrevFollowersCount(user._count.followers);
+        setFollowersCount(user._count.followers);
+    }
 
     const [editForm, setEditForm] = useState({
         name: user.name || "",
@@ -77,6 +89,8 @@ function ProfilePageClient({
         if (result.success) {
             setShowEditDialog(false);
             toast.success("Profile updated successfully");
+            queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+            router.refresh();
         } else {
             toast.error(result.error || "Failed to update profile");
         }
@@ -91,7 +105,13 @@ function ProfilePageClient({
             if (res?.success) {
                 const nextState = typeof res.isFollowing === "boolean" ? res.isFollowing : !isFollowing;
                 setIsFollowing(nextState);
+                setFollowersCount((prev) => prev + (nextState ? 1 : -1));
                 toast.success(nextState ? "User followed successfully" : "User unfollowed successfully");
+
+                queryClient.invalidateQueries({ queryKey: queryKeys.posts.following() });
+                queryClient.invalidateQueries({ queryKey: queryKeys.users.whoToFollow() });
+                queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+                router.refresh();
             } else {
                 toast.error(res?.error || "Failed to update follow status");
             }
@@ -144,7 +164,7 @@ function ProfilePageClient({
                                             }}
                                             className="text-center group transition-colors hover:opacity-80 cursor-pointer"
                                         >
-                                            <div className="font-semibold group-hover:text-primary transition-colors">{user._count.followers.toLocaleString()}</div>
+                                            <div className="font-semibold group-hover:text-primary transition-colors">{followersCount.toLocaleString()}</div>
                                             <div className="text-sm text-muted-foreground">Followers</div>
                                         </button>
                                         <Separator orientation="vertical" />

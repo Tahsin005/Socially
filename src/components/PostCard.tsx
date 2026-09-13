@@ -17,6 +17,8 @@ import { ReactionType } from "@/lib/validations";
 import ReactionPicker, { REACTION_CONFIGS } from "./ReactionPicker";
 import ReactionsDialog from "./ReactionsDialog";
 import MentionText from "./MentionText";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 
 type Post = PostWithDetails;
 
@@ -29,6 +31,7 @@ interface PostCardProps {
 function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps) {
     const { user } = useUser();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [comments, setComments] = useState(post.comments);
     const [newComment, setNewComment] = useState("");
     const [isCommenting, setIsCommenting] = useState(false);
@@ -178,6 +181,10 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
             const result = await deletePost(post.id);
             if (result.success) {
                 toast.success("Post deleted successfully");
+                // Invalidate all post queries so it vanishes across feeds and profiles immediately
+                queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
+                router.refresh();
+
                 if (typeof window !== "undefined" && window.location.pathname.startsWith(`/post/${post.id}`)) {
                     router.push("/");
                 }
@@ -225,6 +232,10 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
             if (res?.success && typeof res.isBookmarked === "boolean") {
                 setHasBookmarked(res.isBookmarked);
                 toast.success(res.isBookmarked ? "Post saved to bookmarks" : "Post removed from bookmarks");
+                if (dbUserId) {
+                    queryClient.invalidateQueries({ queryKey: queryKeys.posts.bookmarks(dbUserId) });
+                }
+                router.refresh();
             } else {
                 setHasBookmarked(post.bookmarks?.some((b) => b.userId === dbUserId) ?? false);
                 toast.error(res?.error || "Failed to bookmark post");

@@ -6,63 +6,6 @@ import prisma from "@/lib/prisma";
 import { createCommentSchema, createPostSchema, ReactionType, reactionTypeSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/mention";
 
-export async function createPost(content: string, image: string) {
-    try {
-        const userId = await getDbUserId();
-
-        if (!userId) return { success: false, error: "Unauthorized" };
-
-        const validation = createPostSchema.safeParse({ content, image });
-        if (!validation.success) {
-            return { success: false, error: validation.error.issues[0]?.message || "Invalid input" };
-        }
-
-        const post = await prisma.post.create({
-            data: {
-                content: validation.data.content,
-                image: validation.data.image || null,
-                authorId: userId,
-            },
-        });
-
-        // Notify mentioned users
-        const mentionedUsernames = extractMentions(validation.data.content);
-        if (mentionedUsernames.length > 0) {
-            const mentionedUsers = await prisma.user.findMany({
-                where: {
-                    username: {
-                        in: mentionedUsernames,
-                        mode: "insensitive",
-                    },
-                    id: {
-                        not: userId, // Don't notify self
-                    },
-                },
-                select: {
-                    id: true,
-                },
-            });
-
-            if (mentionedUsers.length > 0) {
-                await prisma.notification.createMany({
-                    data: mentionedUsers.map((u) => ({
-                        type: "MENTION",
-                        userId: u.id,
-                        creatorId: userId,
-                        postId: post.id,
-                    })),
-                });
-            }
-        }
-
-        revalidatePath("/");
-        return { success: true, post };
-    } catch (error) {
-        console.error("Failed to create post:", error);
-        return { success: false, error: "Failed to create post" };
-    }
-}
-
 const postInclude = {
     author: {
         select: {
@@ -108,6 +51,64 @@ const postInclude = {
 };
 
 export type PostWithDetails = NonNullable<Awaited<ReturnType<typeof getPostById>>>;
+
+export async function createPost(content: string, image: string) {
+    try {
+        const userId = await getDbUserId();
+
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const validation = createPostSchema.safeParse({ content, image });
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid input" };
+        }
+
+        const post = await prisma.post.create({
+            data: {
+                content: validation.data.content,
+                image: validation.data.image || null,
+                authorId: userId,
+            },
+            include: postInclude,
+        });
+
+        // Notify mentioned users
+        const mentionedUsernames = extractMentions(validation.data.content);
+        if (mentionedUsernames.length > 0) {
+            const mentionedUsers = await prisma.user.findMany({
+                where: {
+                    username: {
+                        in: mentionedUsernames,
+                        mode: "insensitive",
+                    },
+                    id: {
+                        not: userId, // Don't notify self
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            if (mentionedUsers.length > 0) {
+                await prisma.notification.createMany({
+                    data: mentionedUsers.map((u) => ({
+                        type: "MENTION",
+                        userId: u.id,
+                        creatorId: userId,
+                        postId: post.id,
+                    })),
+                });
+            }
+        }
+
+        revalidatePath("/");
+        return { success: true, post };
+    } catch (error) {
+        console.error("Failed to create post:", error);
+        return { success: false, error: "Failed to create post" };
+    }
+}
 
 export async function getPosts(options?: { cursor?: string; limit?: number }) {
     try {

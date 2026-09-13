@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { getUserFollowers, getUserFollowing } from "@/actions/user.action";
 import {
   Dialog,
@@ -14,6 +14,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import FollowButton from "@/components/FollowButton";
 import Link from "next/link";
 import { Loader2Icon, UsersIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 
 type UserItem = {
   id: string;
@@ -45,36 +47,25 @@ export default function FollowersDialog({
 }: FollowersDialogProps) {
   const [activeTab, setActiveTab] = useState<"followers" | "following">(initialTab);
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
-  const [followers, setFollowers] = useState<UserItem[] | null>(null);
-  const [following, setFollowing] = useState<UserItem[] | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   if (initialTab !== prevInitialTab) {
     setPrevInitialTab(initialTab);
     setActiveTab(initialTab);
   }
 
-  useEffect(() => {
-    if (!open) return;
+  const { data: followers = [], isLoading: isFollowersLoading } = useQuery({
+    queryKey: queryKeys.users.followers(userId),
+    queryFn: () => getUserFollowers(userId),
+    enabled: open,
+  });
 
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [followersData, followingData] = await Promise.all([
-          getUserFollowers(userId),
-          getUserFollowing(userId),
-        ]);
-        setFollowers(followersData);
-        setFollowing(followingData);
-      } catch (error) {
-        console.error("Error loading follow lists:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { data: following = [], isLoading: isFollowingLoading } = useQuery({
+    queryKey: queryKeys.users.following(userId),
+    queryFn: () => getUserFollowing(userId),
+    enabled: open,
+  });
 
-    loadData();
-  }, [open, userId]);
+  const isLoading = isFollowersLoading || isFollowingLoading;
 
   const renderUserList = (users: UserItem[] | null, emptyText: string) => {
     if (isLoading) {
@@ -132,22 +123,6 @@ export default function FollowersDialog({
                 <FollowButton
                   userId={item.id}
                   initialIsFollowing={item.isFollowing}
-                  onFollowToggle={(nextIsFollowing) => {
-                    setFollowers((prev) =>
-                      prev
-                        ? prev.map((u) =>
-                            u.id === item.id ? { ...u, isFollowing: nextIsFollowing } : u
-                          )
-                        : prev
-                    );
-                    setFollowing((prev) =>
-                      prev
-                        ? prev.map((u) =>
-                            u.id === item.id ? { ...u, isFollowing: nextIsFollowing } : u
-                          )
-                        : prev
-                    );
-                  }}
                 />
               )}
             </div>

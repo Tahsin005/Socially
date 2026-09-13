@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { getFollowingPosts, getPosts, PostWithDetails } from "@/actions/post.action";
 import PostCard from "@/components/PostCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2Icon, Loader2Icon, SparklesIcon, UsersIcon } from "lucide-react";
 import { SignInButton } from "@clerk/nextjs";
 import { PostCardSkeleton } from "@/components/FeedSkeleton";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface FeedTabsProps {
   initialPosts: PostWithDetails[];
@@ -25,78 +27,54 @@ export default function FeedTabs({
 }: FeedTabsProps) {
   const [activeTab, setActiveTab] = useState<"for-you" | "following">("for-you");
 
-  const [forYouPosts, setForYouPosts] = useState<PostWithDetails[]>(initialPosts);
-  const [forYouCursor, setForYouCursor] = useState<string | null>(initialNextCursor);
-  const [isLoadingMoreForYou, setIsLoadingMoreForYou] = useState(false);
-
-  const [prevInitialPosts, setPrevInitialPosts] = useState(initialPosts);
-  if (prevInitialPosts !== initialPosts) {
-    setPrevInitialPosts(initialPosts);
-    setForYouPosts(initialPosts);
-    setForYouCursor(initialNextCursor);
-  }
-
-  const [followingPosts, setFollowingPosts] = useState<PostWithDetails[] | null>(null);
-  const [followingCursor, setFollowingCursor] = useState<string | null>(null);
-  const [isInitialLoadingFollowing, setIsInitialLoadingFollowing] = useState(false);
-  const [isLoadingMoreFollowing, setIsLoadingMoreFollowing] = useState(false);
-
   const forYouSentinelRef = useRef<HTMLDivElement | null>(null);
   const followingSentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const handleTabChange = async (val: string) => {
-    const tab = val as "for-you" | "following";
-    setActiveTab(tab);
+  // For You infinite query (hydrated with initial server data)
+  const {
+    data: forYouData,
+    fetchNextPage: fetchNextForYou,
+    hasNextPage: hasNextForYou,
+    isFetchingNextPage: isFetchingNextForYou,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.posts.forYou(),
+    queryFn: ({ pageParam }) =>
+      getPosts({ cursor: pageParam ?? undefined, limit: 10 }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    initialData: {
+      pages: [{ posts: initialPosts, nextCursor: initialNextCursor }],
+      pageParams: [null],
+    },
+  });
 
-    if (tab === "following" && isAuthenticated && followingPosts === null) {
-      setIsInitialLoadingFollowing(true);
-      try {
-        const { posts, nextCursor } = await getFollowingPosts({ limit: 10 });
-        setFollowingPosts(posts);
-        setFollowingCursor(nextCursor);
-      } catch (error) {
-        console.error("Failed to load following posts:", error);
-      } finally {
-        setIsInitialLoadingFollowing(false);
-      }
-    }
-  };
+  // Following infinite query (auto-refetched when invalidated)
+  const {
+    data: followingData,
+    fetchNextPage: fetchNextFollowing,
+    hasNextPage: hasNextFollowing,
+    isFetchingNextPage: isFetchingNextFollowing,
+    isLoading: isLoadingFollowing,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.posts.following(),
+    queryFn: ({ pageParam }) =>
+      getFollowingPosts({ cursor: pageParam ?? undefined, limit: 10 }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: isAuthenticated && activeTab === "following",
+  });
 
-  const handleLoadMoreForYou = useCallback(async () => {
-    if (!forYouCursor || isLoadingMoreForYou) return;
-    setIsLoadingMoreForYou(true);
-    try {
-      const result = await getPosts({ cursor: forYouCursor, limit: 10 });
-      setForYouPosts((prev) => [...prev, ...result.posts]);
-      setForYouCursor(result.nextCursor);
-    } catch (error) {
-      console.error("Failed to load more posts:", error);
-    } finally {
-      setIsLoadingMoreForYou(false);
-    }
-  }, [forYouCursor, isLoadingMoreForYou]);
+  const forYouPosts = forYouData?.pages.flatMap((page) => page.posts) ?? [];
+  const followingPosts = followingData?.pages.flatMap((page) => page.posts) ?? [];
 
-  const handleLoadMoreFollowing = useCallback(async () => {
-    if (!followingCursor || isLoadingMoreFollowing) return;
-    setIsLoadingMoreFollowing(true);
-    try {
-      const result = await getFollowingPosts({ cursor: followingCursor, limit: 10 });
-      setFollowingPosts((prev) => (prev ? [...prev, ...result.posts] : result.posts));
-      setFollowingCursor(result.nextCursor);
-    } catch (error) {
-      console.error("Failed to load more following posts:", error);
-    } finally {
-      setIsLoadingMoreFollowing(false);
-    }
-  }, [followingCursor, isLoadingMoreFollowing]);
-
+  // Infinite scroll observer for 'For You'
   useEffect(() => {
-    if (activeTab !== "for-you" || !forYouCursor || isLoadingMoreForYou) return;
+    if (activeTab !== "for-you" || !hasNextForYou || isFetchingNextForYou) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          handleLoadMoreForYou();
+          fetchNextForYou();
         }
       },
       { rootMargin: "200px" }
@@ -108,15 +86,16 @@ export default function FeedTabs({
     return () => {
       if (currentSentinel) observer.unobserve(currentSentinel);
     };
-  }, [activeTab, forYouCursor, isLoadingMoreForYou, handleLoadMoreForYou]);
+  }, [activeTab, hasNextForYou, isFetchingNextForYou, fetchNextForYou]);
 
+  // Infinite scroll observer for 'Following'
   useEffect(() => {
-    if (activeTab !== "following" || !followingCursor || isLoadingMoreFollowing) return;
+    if (activeTab !== "following" || !hasNextFollowing || isFetchingNextFollowing) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          handleLoadMoreFollowing();
+          fetchNextFollowing();
         }
       },
       { rootMargin: "200px" }
@@ -128,11 +107,15 @@ export default function FeedTabs({
     return () => {
       if (currentSentinel) observer.unobserve(currentSentinel);
     };
-  }, [activeTab, followingCursor, isLoadingMoreFollowing, handleLoadMoreFollowing]);
+  }, [activeTab, hasNextFollowing, isFetchingNextFollowing, fetchNextFollowing]);
 
   return (
     <div className="w-full">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as "for-you" | "following")}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/60 p-1">
           <TabsTrigger
             value="for-you"
@@ -159,21 +142,21 @@ export default function FeedTabs({
 
               <div ref={forYouSentinelRef} />
 
-              {isLoadingMoreForYou && (
+              {isFetchingNextForYou && (
                 <div className="space-y-6 py-2">
                   <PostCardSkeleton />
                 </div>
               )}
 
-              {forYouCursor ? (
+              {hasNextForYou ? (
                 <div className="flex justify-center pt-2">
                   <Button
                     variant="outline"
-                    onClick={handleLoadMoreForYou}
-                    disabled={isLoadingMoreForYou}
+                    onClick={() => fetchNextForYou()}
+                    disabled={isFetchingNextForYou}
                     className="gap-2"
                   >
-                    {isLoadingMoreForYou ? (
+                    {isFetchingNextForYou ? (
                       <>
                         <Loader2Icon className="size-4 animate-spin" />
                         Loading more posts...
@@ -217,12 +200,12 @@ export default function FeedTabs({
                 <Button variant="default">Sign In to Continue</Button>
               </SignInButton>
             </Card>
-          ) : isInitialLoadingFollowing ? (
+          ) : isLoadingFollowing && followingPosts.length === 0 ? (
             <div className="space-y-6">
               <PostCardSkeleton />
               <PostCardSkeleton />
             </div>
-          ) : followingPosts && followingPosts.length > 0 ? (
+          ) : followingPosts.length > 0 ? (
             <>
               {followingPosts.map((post) => (
                 <PostCard key={post.id} post={post} dbUserId={dbUserId} />
@@ -230,21 +213,21 @@ export default function FeedTabs({
 
               <div ref={followingSentinelRef} />
 
-              {isLoadingMoreFollowing && (
+              {isFetchingNextFollowing && (
                 <div className="space-y-6 py-2">
                   <PostCardSkeleton />
                 </div>
               )}
 
-              {followingCursor ? (
+              {hasNextFollowing ? (
                 <div className="flex justify-center pt-2">
                   <Button
                     variant="outline"
-                    onClick={handleLoadMoreFollowing}
-                    disabled={isLoadingMoreFollowing}
+                    onClick={() => fetchNextFollowing()}
+                    disabled={isFetchingNextFollowing}
                     className="gap-2"
                   >
-                    {isLoadingMoreFollowing ? (
+                    {isFetchingNextFollowing ? (
                       <>
                         <Loader2Icon className="size-4 animate-spin" />
                         Loading more posts...

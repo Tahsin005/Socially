@@ -82,6 +82,7 @@ export async function markNotificationsAsRead(notificationIds: string[]) {
             },
         });
 
+        revalidatePath("/", "layout");
         revalidatePath("/notifications");
         return { success: true };
     } catch (error) {
@@ -105,6 +106,7 @@ export async function markAllNotificationsAsRead() {
             },
         });
 
+        revalidatePath("/", "layout");
         revalidatePath("/notifications");
         return { success: true };
     } catch (error) {

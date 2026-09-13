@@ -260,3 +260,27 @@ export async function getUserFollowing(userId: string) {
         return [];
     }
 }
+
+export async function getUserStats(userId: string) {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                _count: {
+                    select: {
+                        followers: true,
+                        following: true,
+                    },
+                },
+            },
+        });
+
+        return {
+            followersCount: user?._count.followers ?? 0,
+            followingCount: user?._count.following ?? 0,
+        };
+    } catch (error) {
+        console.error("Error fetching user stats:", error);
+        return { followersCount: 0, followingCount: 0 };
+    }
+}

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Separator } from "./ui/separator";
 import FollowersDialog from "./FollowersDialog";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
+import { getUserStats } from "@/actions/user.action";
 
 interface SidebarFollowStatsProps {
   userId: string;
@@ -12,11 +15,23 @@ interface SidebarFollowStatsProps {
 
 export default function SidebarFollowStats({
   userId,
-  followingCount,
-  followersCount,
+  followingCount: initialFollowingCount,
+  followersCount: initialFollowersCount,
 }: SidebarFollowStatsProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"followers" | "following">("followers");
+
+  const { data: stats } = useQuery({
+    queryKey: queryKeys.users.stats(userId),
+    queryFn: () => getUserStats(userId),
+    initialData: {
+      followingCount: initialFollowingCount,
+      followersCount: initialFollowersCount,
+    },
+  });
+
+  const followingCount = stats?.followingCount ?? initialFollowingCount;
+  const followersCount = stats?.followersCount ?? initialFollowersCount;
 
   return (
     <>

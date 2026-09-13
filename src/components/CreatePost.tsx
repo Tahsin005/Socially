@@ -10,34 +10,40 @@ import { ImageIcon, Loader2Icon, SendIcon } from "lucide-react";
 import { createPost } from "@/actions/post.action";
 import toast from "react-hot-toast";
 import ImageUpload from "./ImageUpload";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 
 function CreatePost() {
     const { user } = useUser();
+    const queryClient = useQueryClient();
     const [content, setContent] = useState("");
     const [imageUrl, setImageUrl] = useState("");
-    const [isPosting, setIsPosting] = useState(false);
     const [showImageUpload, setShowImageUpload] = useState(false);
 
-    const handleSubmit = async () => {
-        if (!content.trim() && !imageUrl) return;
-        setIsPosting(true);
-        try {
-            const result = await createPost(content, imageUrl);
-            if (result?.success) {
+    const postMutation = useMutation({
+        mutationFn: () => createPost(content, imageUrl),
+        onSuccess: (result) => {
+            if (result?.success && result.post) {
                 setContent("");
                 setImageUrl("");
                 setShowImageUpload(false);
-
                 toast.success("Post created successfully");
+
+                // Invalidate all feeds to pull fresh data
+                queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
             } else {
                 toast.error(result?.error || "Failed to create post");
             }
-        } catch (error) {
+        },
+        onError: (error) => {
             console.error("Failed to create post:", error);
             toast.error("Failed to create post");
-        } finally {
-            setIsPosting(false);
-        }
+        },
+    });
+
+    const handleSubmit = () => {
+        if ((!content.trim() && !imageUrl) || postMutation.isPending) return;
+        postMutation.mutate();
     };
 
     return (
@@ -45,16 +51,16 @@ function CreatePost() {
             <CardContent className="pt-6">
                 <div className="space-y-4">
                     <div className="flex space-x-4">
-                            <Avatar className="w-10 h-10">
-                                <AvatarImage src={user?.imageUrl || "/avatar.png"} />
-                            </Avatar>
-                            <Textarea
-                                placeholder="What's on your mind?"
-                                className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0 text-base"
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                disabled={isPosting}
-                            />
+                        <Avatar className="w-10 h-10">
+                            <AvatarImage src={user?.imageUrl || "/avatar.png"} />
+                        </Avatar>
+                        <Textarea
+                            placeholder="What's on your mind?"
+                            className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0 text-base"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            disabled={postMutation.isPending}
+                        />
                     </div>
                     {(showImageUpload || imageUrl) && (
                         <div className="border rounded-lg p-4">
@@ -76,7 +82,7 @@ function CreatePost() {
                                 size="sm"
                                 className="text-muted-foreground hover:text-primary"
                                 onClick={() => setShowImageUpload(!showImageUpload)}
-                                disabled={isPosting}
+                                disabled={postMutation.isPending}
                             >
                                 <ImageIcon className="size-4 mr-2" />
                                 Photo
@@ -85,17 +91,17 @@ function CreatePost() {
                         <Button
                             className="flex items-center"
                             onClick={handleSubmit}
-                            disabled={(!content.trim() && !imageUrl) || isPosting}
+                            disabled={(!content.trim() && !imageUrl) || postMutation.isPending}
                         >
-                            {isPosting ? (
+                            {postMutation.isPending ? (
                                 <>
-                                <Loader2Icon className="size-4 mr-2 animate-spin" />
-                                Posting...
+                                    <Loader2Icon className="size-4 mr-2 animate-spin" />
+                                    Posting...
                                 </>
                             ) : (
                                 <>
-                                <SendIcon className="size-4 mr-2" />
-                                Post
+                                    <SendIcon className="size-4 mr-2" />
+                                    Post
                                 </>
                             )}
                         </Button>
@@ -103,7 +109,7 @@ function CreatePost() {
                 </div>
             </CardContent>
         </Card>
-    )
+    );
 }
 
-export default CreatePost
+export default CreatePost;
