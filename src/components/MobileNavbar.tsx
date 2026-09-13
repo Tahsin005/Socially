@@ -21,7 +21,11 @@ import { useAuth, SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 
-function MobileNavbar() {
+interface MobileNavbarProps {
+  unreadCount?: number;
+}
+
+function MobileNavbar({ unreadCount = 0 }: MobileNavbarProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { isSignedIn } = useAuth();
   const { user } = useUser();
@@ -46,8 +50,11 @@ function MobileNavbar() {
 
       <Sheet open={showMobileMenu} onOpenChange={setShowMobileMenu}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="relative">
             <MenuIcon className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 size-2 rounded-full bg-red-500" />
+            )}
           </Button>
         </SheetTrigger>
         <SheetContent side="right" className="w-[300px]">
@@ -70,12 +77,19 @@ function MobileNavbar() {
               <>
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-3 justify-start"
+                  className="flex items-center justify-between w-full"
                   asChild
                 >
                   <Link href="/notifications">
-                    <BellIcon className="w-4 h-4" />
-                    Notifications
+                    <span className="flex items-center gap-3">
+                      <BellIcon className="w-4 h-4" />
+                      Notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 </Button>
 

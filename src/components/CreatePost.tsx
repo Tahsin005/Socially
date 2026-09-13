@@ -29,6 +29,8 @@ function CreatePost() {
                 setShowImageUpload(false);
 
                 toast.success("Post created successfully");
+            } else {
+                toast.error(result?.error || "Failed to create post");
             }
         } catch (error) {
             console.error("Failed to create post:", error);

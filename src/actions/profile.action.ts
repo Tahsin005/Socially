@@ -147,24 +147,28 @@ export async function getUserLikedPosts(userId: string) {
     }
 }
 
+import { updateProfileSchema } from "@/lib/validations";
+
 export async function updateProfile(formData: FormData) {
     try {
         const { userId: clerkId } = await auth();
         if (!clerkId) throw new Error("Unauthorized");
 
-        const name = formData.get("name") as string;
-        const bio = formData.get("bio") as string;
-        const location = formData.get("location") as string;
-        const website = formData.get("website") as string;
+        const rawData = {
+            name: formData.get("name") as string,
+            bio: (formData.get("bio") as string) || "",
+            location: (formData.get("location") as string) || "",
+            website: (formData.get("website") as string) || "",
+        };
+
+        const validation = updateProfileSchema.safeParse(rawData);
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid profile data" };
+        }
 
         const user = await prisma.user.update({
             where: { clerkId },
-            data: {
-                name,
-                bio,
-                location,
-                website,
-            },
+            data: validation.data,
         });
 
         revalidatePath("/profile");

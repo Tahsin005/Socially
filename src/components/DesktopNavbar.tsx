@@ -5,7 +5,11 @@ import { SignInButton, UserButton } from "@clerk/nextjs";
 import ModeToggle from "./ModeToggle";
 import { currentUser } from "@clerk/nextjs/server";
 
-async function DesktopNavbar() {
+interface DesktopNavbarProps {
+    unreadCount?: number;
+}
+
+async function DesktopNavbar({ unreadCount = 0 }: DesktopNavbarProps) {
     const user = await currentUser();
 
     return (
@@ -23,7 +27,14 @@ async function DesktopNavbar() {
                 <>
                     <Button variant="ghost" className="flex items-center gap-2" asChild>
                         <Link href="/notifications">
-                            <BellIcon className="w-4 h-4" />
+                            <div className="relative flex items-center">
+                                <BellIcon className="w-4 h-4" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                    </span>
+                                )}
+                            </div>
                             <span className="hidden lg:inline">Notifications</span>
                         </Link>
                     </Button>

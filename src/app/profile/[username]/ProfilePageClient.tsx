@@ -71,6 +71,8 @@ function ProfilePageClient({
         if (result.success) {
             setShowEditDialog(false);
             toast.success("Profile updated successfully");
+        } else {
+            toast.error(result.error || "Failed to update profile");
         }
     };
 

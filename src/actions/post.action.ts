@@ -3,17 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
 import prisma from "@/lib/prisma";
+import { createCommentSchema, createPostSchema } from "@/lib/validations";
 
 export async function createPost(content: string, image: string) {
     try {
         const userId = await getDbUserId();
 
-        if (!userId) return;
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const validation = createPostSchema.safeParse({ content, image });
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid input" };
+        }
 
         const post = await prisma.post.create({
             data: {
-                content,
-                image,
+                content: validation.data.content,
+                image: validation.data.image || null,
                 authorId: userId,
             },
         });
@@ -143,11 +149,15 @@ export async function createComment(postId: string, content: string) {
     try {
         const userId = await getDbUserId();
 
-        if (!userId) return;
-        if (!content) throw new Error("Content is required");
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const validation = createCommentSchema.safeParse({ postId, content });
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid input" };
+        }
 
         const post = await prisma.post.findUnique({
-            where: { id: postId },
+            where: { id: validation.data.postId },
             select: { authorId: true },
         });
 
@@ -156,9 +166,19 @@ export async function createComment(postId: string, content: string) {
         const [comment] = await prisma.$transaction(async (tx) => {
             const newComment = await tx.comment.create({
                 data: {
-                    content,
+                    content: validation.data.content,
                     authorId: userId,
-                    postId,
+                    postId: validation.data.postId,
+                },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            name: true,
+                            username: true,
+                            image: true,
+                        },
+                    },
                 },
             });
 
@@ -168,7 +188,7 @@ export async function createComment(postId: string, content: string) {
                         type: "COMMENT",
                         userId: post.authorId,
                         creatorId: userId,
-                        postId,
+                        postId: validation.data.postId,
                         commentId: newComment.id,
                     },
                 });
@@ -182,6 +202,40 @@ export async function createComment(postId: string, content: string) {
     } catch (error) {
         console.error("Failed to create comment:", error);
         return { success: false, error: "Failed to create comment" };
+    }
+}
+
+export async function deleteComment(commentId: string) {
+    try {
+        const userId = await getDbUserId();
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const comment = await prisma.comment.findUnique({
+            where: { id: commentId },
+            select: {
+                authorId: true,
+                postId: true,
+                post: {
+                    select: { authorId: true },
+                },
+            },
+        });
+
+        if (!comment) return { success: false, error: "Comment not found" };
+
+        if (comment.authorId !== userId && comment.post.authorId !== userId) {
+            return { success: false, error: "Unauthorized - no delete permission" };
+        }
+
+        await prisma.comment.delete({
+            where: { id: commentId },
+        });
+
+        revalidatePath("/");
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete comment:", error);
+        return { success: false, error: "Failed to delete comment" };
     }
 }
 

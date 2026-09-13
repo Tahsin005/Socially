@@ -18,9 +18,12 @@ const getNotificationIcon = (type: string) => {
   }
 };
 
+import Link from "next/link";
+
 export default async function NotificationList() {
   const notifications = await getNotifications();
 
+  const unreadCount = notifications.filter(n => !n.read).length;
   const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
   if (unreadIds.length > 0) await markNotificationsAsRead(unreadIds);
 
@@ -28,9 +31,16 @@ export default async function NotificationList() {
     <Card>
       <CardHeader className="border-b">
         <div className="flex items-center justify-between">
-          <CardTitle>Notifications</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Notifications</CardTitle>
+            {unreadCount > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
           <span className="text-sm text-muted-foreground">
-            {notifications.filter((n) => !n.read).length} unread
+            {notifications.length} total
           </span>
         </div>
       </CardHeader>
@@ -38,7 +48,7 @@ export default async function NotificationList() {
       <CardContent className="p-0">
         <ScrollArea className="h-[calc(100vh-12rem)]">
           {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">No notifications yet</div>
+            <div className="p-8 text-center text-muted-foreground">No notifications yet</div>
           ) : (
             notifications.map((notification) => (
               <div
@@ -47,16 +57,21 @@ export default async function NotificationList() {
                   !notification.read ? "bg-muted/50" : ""
                 }`}
               >
-                <Avatar className="mt-1">
-                  <AvatarImage src={notification.creator.image ?? "/avatar.png"} />
-                </Avatar>
+                <Link href={`/profile/${notification.creator.username}`}>
+                  <Avatar className="mt-1 hover:opacity-80 transition-opacity">
+                    <AvatarImage src={notification.creator.image ?? "/avatar.png"} />
+                  </Avatar>
+                </Link>
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     {getNotificationIcon(notification.type)}
                     <span>
-                      <span className="font-medium">
+                      <Link
+                        href={`/profile/${notification.creator.username}`}
+                        className="font-medium hover:underline"
+                      >
                         {notification.creator.name ?? notification.creator.username}
-                      </span>{" "}
+                      </Link>{" "}
                       {notification.type === "FOLLOW"
                         ? "started following you"
                         : notification.type === "LIKE"

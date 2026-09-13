@@ -1,5 +1,5 @@
 'use client';
-import { createComment, deletePost, getPosts, toggleLike } from "@/actions/post.action";
+import { createComment, deleteComment, deletePost, getPosts, toggleLike } from "@/actions/post.action";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -9,7 +9,7 @@ import { Card, CardContent } from "./ui/card";
 import Link from "next/link";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { HeartIcon, LogInIcon, MessageCircleIcon, SendIcon } from "lucide-react";
+import { HeartIcon, LogInIcon, MessageCircleIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { DeleteAlertDialog } from "./DeleteAlertDialog";
 
@@ -17,15 +17,15 @@ type Posts = Awaited<ReturnType<typeof getPosts>>;
 type Post = Posts[number];
 function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
     const { user } = useUser();
+    const [comments, setComments] = useState(post.comments);
     const [newComment, setNewComment] = useState("");
     const [isCommenting, setIsCommenting] = useState(false);
     const [isLiking, setIsLiking] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeletingCommentId, setIsDeletingCommentId] = useState<string | null>(null);
     const [hasLiked, setHasLiked] = useState(post.likes.some((like) => like.userId === dbUserId));
     const [optimisticLikes, setOptmisticLikes] = useState(post._count.likes);
     const [showComments, setShowComments] = useState(false);
-    // console.log('dbUserId...', dbUserId);
-    // console.log('post..', post.author.id);
 
     const handleLike = async () => {
         if (isLiking) return;
@@ -49,14 +49,35 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
         try {
             setIsCommenting(true);
             const result = await createComment(post.id, newComment);
-            if (result?.success) {
-                toast.success("Comment posted successfully");
+            if (result?.success && result.comment) {
+                setComments((prev) => [...prev, result.comment]);
                 setNewComment("");
+                toast.success("Comment posted successfully");
+            } else {
+                toast.error(result?.error || "Failed to add comment");
             }
         } catch (error) {
             toast.error("Failed to add comment");
         } finally {
             setIsCommenting(false);
+        }
+    }
+
+    const handleDeleteComment = async (commentId: string) => {
+        if (isDeletingCommentId) return;
+        try {
+            setIsDeletingCommentId(commentId);
+            const result = await deleteComment(commentId);
+            if (result?.success) {
+                setComments((prev) => prev.filter((c) => c.id !== commentId));
+                toast.success("Comment deleted");
+            } else {
+                toast.error(result?.error || "Failed to delete comment");
+            }
+        } catch (error) {
+            toast.error("Failed to delete comment");
+        } finally {
+            setIsDeletingCommentId(null);
         }
     }
 
@@ -150,30 +171,53 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                             <MessageCircleIcon
                                 className={`size-5 ${showComments ? "fill-blue-500 text-blue-500" : ""}`}
                             />
-                            <span>{post.comments.length}</span>
+                            <span>{comments.length}</span>
                         </Button>
                     </div>
 
                     {showComments && (
                         <div className="space-y-4 pt-4 border-t">
                             <div className="space-y-4">
-                                {post.comments.map((comment) => (
-                                    <div key={comment.id} className="flex space-x-3">
-                                        <Avatar className="size-8 flex-shrink-0">
-                                            <AvatarImage src={comment.author.image ?? "/avatar.png"} />
-                                        </Avatar>
+                                {comments.map((comment) => (
+                                    <div key={comment.id} className="flex space-x-3 group">
+                                        <Link href={`/profile/${comment.author.username}`}>
+                                            <Avatar className="size-8 flex-shrink-0 hover:opacity-80 transition-opacity">
+                                                <AvatarImage src={comment.author.image ?? "/avatar.png"} />
+                                            </Avatar>
+                                        </Link>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                <span className="font-medium text-sm">{comment.author.name}</span>
-                                                <span className="text-sm text-muted-foreground">
-                                                @{comment.author.username}
-                                                </span>
-                                                <span className="text-sm text-muted-foreground">·</span>
-                                                <span className="text-sm text-muted-foreground">
-                                                    {formatDistanceToNow(new Date(comment.createdAt))} ago
-                                                </span>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <Link
+                                                        href={`/profile/${comment.author.username}`}
+                                                        className="font-medium text-sm hover:underline"
+                                                    >
+                                                        {comment.author.name}
+                                                    </Link>
+                                                    <Link
+                                                        href={`/profile/${comment.author.username}`}
+                                                        className="text-sm text-muted-foreground hover:underline"
+                                                    >
+                                                        @{comment.author.username}
+                                                    </Link>
+                                                    <span className="text-sm text-muted-foreground">·</span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {formatDistanceToNow(new Date(comment.createdAt))} ago
+                                                    </span>
+                                                </div>
+                                                {(dbUserId === comment.author.id || dbUserId === post.author.id) && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-7 text-muted-foreground hover:text-red-500 opacity-80 hover:opacity-100"
+                                                        onClick={() => handleDeleteComment(comment.id)}
+                                                        disabled={isDeletingCommentId === comment.id}
+                                                    >
+                                                        <Trash2Icon className="size-3.5" />
+                                                    </Button>
+                                                )}
                                             </div>
-                                            <p className="text-sm break-words">{comment.content}</p>
+                                            <p className="text-sm break-words mt-0.5">{comment.content}</p>
                                         </div>
                                     </div>
                                 ))}
