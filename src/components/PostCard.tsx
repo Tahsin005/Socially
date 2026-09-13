@@ -1,5 +1,5 @@
 'use client';
-import { createComment, deleteComment, deletePost, getPosts, PostWithDetails, toggleLike } from "@/actions/post.action";
+import { createComment, deleteComment, deletePost, getPosts, PostWithDetails, toggleBookmark, toggleLike } from "@/actions/post.action";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -9,7 +9,7 @@ import { Card, CardContent } from "./ui/card";
 import Link from "next/link";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { HeartIcon, LogInIcon, MessageCircleIcon, SendIcon, Share2Icon, Trash2Icon } from "lucide-react";
+import { BookmarkIcon, HeartIcon, LogInIcon, MessageCircleIcon, SendIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { DeleteAlertDialog } from "./DeleteAlertDialog";
 import { useRouter } from "next/navigation";
@@ -33,6 +33,10 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
     const [isDeletingCommentId, setIsDeletingCommentId] = useState<string | null>(null);
     const [hasLiked, setHasLiked] = useState(post.likes.some((like) => like.userId === dbUserId));
     const [optimisticLikes, setOptmisticLikes] = useState(post._count.likes);
+    const [hasBookmarked, setHasBookmarked] = useState(
+        post.bookmarks?.some((b) => b.userId === dbUserId) ?? false
+    );
+    const [isBookmarking, setIsBookmarking] = useState(false);
     const [showComments, setShowComments] = useState(defaultShowComments);
 
     const handleLike = async () => {
@@ -132,6 +136,29 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
         }
     };
 
+    const handleBookmark = async () => {
+        if (isBookmarking) return;
+
+        try {
+            setIsBookmarking(true);
+            setHasBookmarked((prev) => !prev);
+
+            const res = await toggleBookmark(post.id);
+            if (res?.success && typeof res.isBookmarked === "boolean") {
+                setHasBookmarked(res.isBookmarked);
+                toast.success(res.isBookmarked ? "Post saved to bookmarks" : "Post removed from bookmarks");
+            } else {
+                setHasBookmarked(post.bookmarks?.some((b) => b.userId === dbUserId) ?? false);
+                toast.error(res?.error || "Failed to bookmark post");
+            }
+        } catch {
+            setHasBookmarked(post.bookmarks?.some((b) => b.userId === dbUserId) ?? false);
+            toast.error("Failed to bookmark post");
+        } finally {
+            setIsBookmarking(false);
+        }
+    };
+
     return (
         <Card className="overflow-hidden">
             <CardContent className="p-4 sm:p-6">
@@ -174,54 +201,83 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
                         </div>
                     )}
 
-                    <div className="flex items-center pt-2 space-x-4">
+                    <div className="flex items-center justify-between pt-2">
+                        <div className="flex items-center space-x-4">
+                            {user ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`text-muted-foreground gap-2 ${
+                                    hasLiked ? "text-red-500 hover:text-red-600" : "hover:text-red-500"
+                                    }`}
+                                    onClick={handleLike}
+                                >
+                                    {hasLiked ? (
+                                        <HeartIcon className="size-5 fill-current" />
+                                    ) : (
+                                        <HeartIcon className="size-5" />
+                                    )}
+                                    <span>{optimisticLikes}</span>
+                                </Button>
+                            ) : (
+                                <SignInButton mode="modal">
+                                    <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+                                        <HeartIcon className="size-5" />
+                                        <span>{optimisticLikes}</span>
+                                    </Button>
+                                </SignInButton>
+                            )}
+
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground gap-2 hover:text-blue-500"
+                                onClick={() => setShowComments((prev) => !prev)}
+                            >
+                                <MessageCircleIcon
+                                    className={`size-5 ${showComments ? "fill-blue-500 text-blue-500" : ""}`}
+                                />
+                                <span>{comments.length}</span>
+                            </Button>
+
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground gap-2 hover:text-green-500"
+                                onClick={handleShare}
+                                title="Share post"
+                            >
+                                <Share2Icon className="size-5" />
+                                <span className="hidden sm:inline text-xs">Share</span>
+                            </Button>
+                        </div>
+
                         {user ? (
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 className={`text-muted-foreground gap-2 ${
-                                hasLiked ? "text-red-500 hover:text-red-600" : "hover:text-red-500"
+                                    hasBookmarked ? "text-primary hover:text-primary/80" : "hover:text-primary"
                                 }`}
-                                onClick={handleLike}
+                                onClick={handleBookmark}
+                                title={hasBookmarked ? "Remove bookmark" : "Bookmark post"}
                             >
-                                {hasLiked ? (
-                                    <HeartIcon className="size-5 fill-current" />
-                                ) : (
-                                    <HeartIcon className="size-5" />
-                                )}
-                                <span>{optimisticLikes}</span>
+                                <BookmarkIcon className={`size-5 ${hasBookmarked ? "fill-current" : ""}`} />
+                                <span className="hidden sm:inline text-xs">{hasBookmarked ? "Saved" : "Save"}</span>
                             </Button>
                         ) : (
                             <SignInButton mode="modal">
-                                <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
-                                    <HeartIcon className="size-5" />
-                                    <span>{optimisticLikes}</span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground gap-2 hover:text-primary"
+                                    title="Sign in to bookmark"
+                                >
+                                    <BookmarkIcon className="size-5" />
+                                    <span className="hidden sm:inline text-xs">Save</span>
                                 </Button>
                             </SignInButton>
                         )}
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground gap-2 hover:text-blue-500"
-                            onClick={() => setShowComments((prev) => !prev)}
-                        >
-                            <MessageCircleIcon
-                                className={`size-5 ${showComments ? "fill-blue-500 text-blue-500" : ""}`}
-                            />
-                            <span>{comments.length}</span>
-                        </Button>
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground gap-2 hover:text-green-500"
-                            onClick={handleShare}
-                            title="Share post"
-                        >
-                            <Share2Icon className="size-5" />
-                            <span className="hidden sm:inline text-xs">Share</span>
-                        </Button>
                     </div>
 
                     {showComments && (

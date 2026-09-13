@@ -131,6 +131,9 @@ export async function toggleFollow(targetUserId: string) {
                     },
                 },
             });
+            revalidatePath("/");
+            revalidatePath("/profile");
+            return { success: true, isFollowing: false };
         } else {
             await prisma.$transaction([
                 prisma.follows.create({
@@ -148,12 +151,112 @@ export async function toggleFollow(targetUserId: string) {
                     },
                 }),
             ]);
+            revalidatePath("/");
+            revalidatePath("/profile");
+            return { success: true, isFollowing: true };
         }
-
-        revalidatePath("/");
-        return { success: true };
     } catch (error) {
         console.log("Error in toggleFollow", error);
         return { success: false, error: "Error toggling follow" };
+    }
+}
+
+export async function getUserFollowers(userId: string) {
+    try {
+        const currentUserId = await getDbUserId();
+
+        const follows = await prisma.follows.findMany({
+            where: {
+                followingId: userId,
+            },
+            include: {
+                follower: {
+                    select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                        image: true,
+                        bio: true,
+                        followers: currentUserId
+                            ? {
+                                  where: {
+                                      followerId: currentUserId,
+                                  },
+                                  select: {
+                                      followerId: true,
+                                  },
+                              }
+                            : false,
+                        _count: {
+                            select: {
+                                followers: true,
+                                following: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        return follows.map((f) => ({
+            ...f.follower,
+            isFollowing: currentUserId ? (f.follower.followers?.length ?? 0) > 0 : false,
+        }));
+    } catch (error) {
+        console.error("Error fetching followers:", error);
+        return [];
+    }
+}
+
+export async function getUserFollowing(userId: string) {
+    try {
+        const currentUserId = await getDbUserId();
+
+        const follows = await prisma.follows.findMany({
+            where: {
+                followerId: userId,
+            },
+            include: {
+                following: {
+                    select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                        image: true,
+                        bio: true,
+                        followers: currentUserId
+                            ? {
+                                  where: {
+                                      followerId: currentUserId,
+                                  },
+                                  select: {
+                                      followerId: true,
+                                  },
+                              }
+                            : false,
+                        _count: {
+                            select: {
+                                followers: true,
+                                following: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        return follows.map((f) => ({
+            ...f.following,
+            isFollowing: currentUserId ? (currentUserId === userId || (f.following.followers?.length ?? 0) > 0) : false,
+        }));
+    } catch (error) {
+        console.error("Error fetching following:", error);
+        return [];
     }
 }

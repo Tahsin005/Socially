@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 import { LinkIcon, MapPinIcon } from "lucide-react";
+import SidebarFollowStats from "./SidebarFollowStats";
 
 async function Sidebar() {
     const authUser = await currentUser();
@@ -37,17 +38,11 @@ async function Sidebar() {
 
                         <div className="w-full">
                             <Separator className="my-4" />
-                                <div className="flex justify-between">
-                                    <div>
-                                        <p className="font-medium">{user._count.following}</p>
-                                        <p className="text-xs text-muted-foreground">Following</p>
-                                    </div>
-                                    <Separator orientation="vertical" />
-                                    <div>
-                                        <p className="font-medium">{user._count.followers}</p>
-                                        <p className="text-xs text-muted-foreground">Followers</p>
-                                    </div>
-                                </div>
+                            <SidebarFollowStats
+                                userId={user.id}
+                                followingCount={user._count.following}
+                                followersCount={user._count.followers}
+                            />
                             <Separator className="my-4" />
                         </div>
 

@@ -29,6 +29,7 @@ model User {
   posts Post[]
   comments Comment[]
   likes Like[]
+  bookmarks Bookmark[]
 
   followers Follows[] @relation("following")
   following Follows[] @relation("follower")
@@ -49,6 +50,7 @@ model Post{
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments Comment[]
   likes Like[]
+  bookmarks Bookmark[]
   notifications Notification[]
 }
 
@@ -114,4 +116,17 @@ enum NotificationType {
   LIKE
   COMMENT
   FOLLOW
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, postId])
 }

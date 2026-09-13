@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import {
+    BookmarkIcon,
     CalendarIcon,
     EditIcon,
     FileTextIcon,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import FollowersDialog from "@/components/FollowersDialog";
 
 type User = Awaited<ReturnType<typeof getProfileByUsername>>;
 type Posts = Awaited<ReturnType<typeof getUserPosts>>;
@@ -39,6 +41,7 @@ interface ProfilePageClientProps {
     dbUserId: string;
     posts: Posts;
     likedPosts: Posts;
+    bookmarkedPosts?: Posts;
     isFollowing: boolean;
 }
 
@@ -47,10 +50,13 @@ function ProfilePageClient({
     dbUserId,
     likedPosts,
     posts,
+    bookmarkedPosts = [],
     user,
 }: ProfilePageClientProps) {
     const { user: currentUser } = useUser();
     const [showEditDialog, setShowEditDialog] = useState(false);
+    const [showFollowersModal, setShowFollowersModal] = useState(false);
+    const [followersModalTab, setFollowersModalTab] = useState<"followers" | "following">("followers");
     const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
     const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
 
@@ -81,9 +87,14 @@ function ProfilePageClient({
 
         try {
             setIsUpdatingFollow(true);
-            await toggleFollow(user.id);
-            setIsFollowing(!isFollowing);
-            toast.success("Follow status updated successfully");
+            const res = await toggleFollow(user.id);
+            if (res?.success) {
+                const nextState = typeof res.isFollowing === "boolean" ? res.isFollowing : !isFollowing;
+                setIsFollowing(nextState);
+                toast.success(nextState ? "User followed successfully" : "User unfollowed successfully");
+            } else {
+                toast.error(res?.error || "Failed to update follow status");
+            }
         } catch (error) {
             toast.error("Failed to update follow status");
         } finally {
@@ -113,17 +124,31 @@ function ProfilePageClient({
 
                                 <div className="w-full mt-6">
                                     <div className="flex justify-between mb-4">
-                                        <div>
-                                            <div className="font-semibold">{user._count.following.toLocaleString()}</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFollowersModalTab("following");
+                                                setShowFollowersModal(true);
+                                            }}
+                                            className="text-center group transition-colors hover:opacity-80 cursor-pointer"
+                                        >
+                                            <div className="font-semibold group-hover:text-primary transition-colors">{user._count.following.toLocaleString()}</div>
                                             <div className="text-sm text-muted-foreground">Following</div>
-                                        </div>
+                                        </button>
                                         <Separator orientation="vertical" />
-                                        <div>
-                                            <div className="font-semibold">{user._count.followers.toLocaleString()}</div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFollowersModalTab("followers");
+                                                setShowFollowersModal(true);
+                                            }}
+                                            className="text-center group transition-colors hover:opacity-80 cursor-pointer"
+                                        >
+                                            <div className="font-semibold group-hover:text-primary transition-colors">{user._count.followers.toLocaleString()}</div>
                                             <div className="text-sm text-muted-foreground">Followers</div>
-                                        </div>
-                                            <Separator orientation="vertical" />
-                                        <div>
+                                        </button>
+                                        <Separator orientation="vertical" />
+                                        <div className="text-center">
                                             <div className="font-semibold">{user._count.posts.toLocaleString()}</div>
                                             <div className="text-sm text-muted-foreground">Posts</div>
                                         </div>
@@ -200,6 +225,16 @@ function ProfilePageClient({
                             <HeartIcon className="size-4" />
                             Likes
                         </TabsTrigger>
+                        {isOwnProfile && (
+                            <TabsTrigger
+                                value="bookmarks"
+                                className="flex items-center gap-2 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary
+                                data-[state=active]:bg-transparent px-6 font-semibold"
+                            >
+                                <BookmarkIcon className="size-4" />
+                                Saved
+                            </TabsTrigger>
+                        )}
                     </TabsList>
 
                     <TabsContent value="posts" className="mt-6">
@@ -221,6 +256,22 @@ function ProfilePageClient({
                             )}
                         </div>
                     </TabsContent>
+
+                    {isOwnProfile && (
+                        <TabsContent value="bookmarks" className="mt-6">
+                            <div className="space-y-6">
+                                {bookmarkedPosts.length > 0 ? (
+                                    bookmarkedPosts.map((post) => (
+                                        <PostCard key={post.id} post={post} dbUserId={dbUserId} />
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        No saved posts yet
+                                    </div>
+                                )}
+                            </div>
+                        </TabsContent>
+                    )}
                 </Tabs>
 
                 <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
@@ -275,6 +326,14 @@ function ProfilePageClient({
                         </div>
                     </DialogContent>
                 </Dialog>
+
+                <FollowersDialog
+                    userId={user.id}
+                    initialTab={followersModalTab}
+                    open={showFollowersModal}
+                    onOpenChange={setShowFollowersModal}
+                    currentUserId={dbUserId || null}
+                />
             </div>
         </div>
     );

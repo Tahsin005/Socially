@@ -35,48 +35,56 @@ export async function getProfileByUsername(username: string) {
     }
 }
 
+const postInclude = {
+    author: {
+        select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true,
+        },
+    },
+    comments: {
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    image: true,
+                },
+            },
+        },
+        orderBy: {
+            createdAt: "asc" as const,
+        },
+    },
+    likes: {
+        select: {
+            userId: true,
+        },
+    },
+    bookmarks: {
+        select: {
+            userId: true,
+        },
+    },
+    _count: {
+        select: {
+            likes: true,
+            comments: true,
+            bookmarks: true,
+        },
+    },
+};
+
 export async function getUserPosts(userId: string) {
     try {
         const posts = await prisma.post.findMany({
             where: {
                 authorId: userId,
             },
-            include: {
-                author: {
-                    select: {
-                        id: true,
-                        name: true,
-                        username: true,
-                        image: true,
-                    },
-                },
-                comments: {
-                    include: {
-                        author: {
-                            select: {
-                                id: true,
-                                name: true,
-                                username: true,
-                                image: true,
-                            },
-                        },
-                    },
-                    orderBy: {
-                        createdAt: "asc",
-                    },
-                },
-                likes: {
-                    select: {
-                        userId: true,
-                    },
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        comments: true,
-                    },
-                },
-            },
+            include: postInclude,
             orderBy: {
                 createdAt: "desc",
             },
@@ -99,42 +107,7 @@ export async function getUserLikedPosts(userId: string) {
                     },
                 },
             },
-            include: {
-                author: {
-                    select: {
-                        id: true,
-                        name: true,
-                        username: true,
-                        image: true,
-                    },
-                },
-                comments: {
-                    include: {
-                        author: {
-                            select: {
-                                id: true,
-                                name: true,
-                                username: true,
-                                image: true,
-                            },
-                        },
-                    },
-                    orderBy: {
-                        createdAt: "asc",
-                    },
-                },
-                likes: {
-                    select: {
-                        userId: true,
-                    },
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        comments: true,
-                    },
-                },
-            },
+            include: postInclude,
             orderBy: {
                 createdAt: "desc",
             },
