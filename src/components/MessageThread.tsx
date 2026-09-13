@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ConversationParticipant,
+  FormattedConversation,
   getMessages,
   markMessagesAsRead,
   MessageWithSender,
@@ -47,7 +48,6 @@ export default function MessageThread({
   const queryClient = useQueryClient();
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [optimisticMessages, setOptimisticMessages] = useState<MessageWithSender[]>([]);
 
   // 3-second smart polling while actively in this conversation
   const { data, isLoading } = useQuery({
@@ -55,6 +55,28 @@ export default function MessageThread({
     queryFn: async () => {
       const res = await getMessages(conversationId);
       if (res.success && res.messages) {
+        // Retain any pending optimistic messages if a polling tick happens before mutation settles
+        const currentData =
+          queryClient.getQueryData<MessageWithSender[]>(
+            queryKeys.messages.thread(conversationId)
+          ) || [];
+        const pendingOptimistic = currentData.filter((m) =>
+          m.id.startsWith("temp-")
+        );
+        if (pendingOptimistic.length > 0) {
+          const notYetOnServer = pendingOptimistic.filter(
+            (opt) =>
+              !res.messages.some(
+                (srv) =>
+                  srv.content === opt.content &&
+                  Math.abs(
+                    new Date(srv.createdAt).getTime() -
+                      new Date(opt.createdAt).getTime()
+                  ) < 10000
+              )
+          );
+          return [...res.messages, ...notYetOnServer];
+        }
         return res.messages;
       }
       return [];
@@ -63,15 +85,7 @@ export default function MessageThread({
     refetchIntervalInBackground: false,
   });
 
-  const serverMessages = data || [];
-
-  // Combine server messages with optimistic messages that aren't on the server yet
-  const displayedMessages = [
-    ...serverMessages,
-    ...optimisticMessages.filter(
-      (opt) => !serverMessages.some((srv) => srv.id === opt.id || (srv.content === opt.content && Math.abs(new Date(srv.createdAt).getTime() - new Date(opt.createdAt).getTime()) < 4000))
-    ),
-  ];
+  const displayedMessages = data || [];
 
   // Mark messages as read on mount or when new messages arrive
   useEffect(() => {
@@ -88,7 +102,7 @@ export default function MessageThread({
     return () => {
       isMounted = false;
     };
-  }, [conversationId, serverMessages.length, queryClient]);
+  }, [conversationId, displayedMessages.length, queryClient]);
 
   // Auto-scroll to bottom on load and new messages
   useEffect(() => {
@@ -99,15 +113,27 @@ export default function MessageThread({
     mutationFn: async (text: string) => {
       return await sendMessage(conversationId, text);
     },
-    onMutate: (text) => {
+    onMutate: async (text: string) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: queryKeys.messages.thread(conversationId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.messages.conversations() });
+
+      const previousMessages = queryClient.getQueryData<MessageWithSender[]>(
+        queryKeys.messages.thread(conversationId)
+      );
+      const previousConversations = queryClient.getQueryData<FormattedConversation[]>(
+        queryKeys.messages.conversations()
+      );
+
       const tempId = `temp-${Date.now()}`;
+      const now = new Date();
       const tempMessage: MessageWithSender = {
         id: tempId,
         conversationId,
         senderId: currentUserId,
         content: text,
         isRead: false,
-        createdAt: new Date(),
+        createdAt: now,
         sender: {
           id: currentUserId,
           name: "You",
@@ -115,26 +141,105 @@ export default function MessageThread({
           image: null,
         },
       };
-      setOptimisticMessages((prev) => [...prev, tempMessage]);
+
+      // Optimistically append the message to the thread in query cache
+      queryClient.setQueryData<MessageWithSender[]>(
+        queryKeys.messages.thread(conversationId),
+        (old = []) => [...old, tempMessage]
+      );
+
+      // Optimistically update the conversation list in query cache
+      queryClient.setQueryData<FormattedConversation[]>(
+        queryKeys.messages.conversations(),
+        (old = []) => {
+          const existing = old.find((c) => c.id === conversationId);
+          if (!existing) return old;
+          const updated: FormattedConversation = {
+            ...existing,
+            lastMessage: {
+              id: tempId,
+              content: text,
+              senderId: currentUserId,
+              createdAt: now,
+              isRead: false,
+            },
+            updatedAt: now,
+          };
+          return [updated, ...old.filter((c) => c.id !== conversationId)];
+        }
+      );
+
+      return { previousMessages, previousConversations, tempId };
     },
-    onSuccess: (result, text) => {
+    onSuccess: (result, text, context) => {
       if (result?.success && result.message) {
-        // Sync server thread & conversation list
+        // Seamlessly replace the tempMessage with the real server message in cache
+        queryClient.setQueryData<MessageWithSender[]>(
+          queryKeys.messages.thread(conversationId),
+          (old = []) =>
+            old.map((m) => (m.id === context?.tempId ? result.message! : m))
+        );
+
+        // Also update the conversation list item with the finalized message
+        queryClient.setQueryData<FormattedConversation[]>(
+          queryKeys.messages.conversations(),
+          (old = []) =>
+            old.map((c) => {
+              if (c.id === conversationId && c.lastMessage?.id === context?.tempId) {
+                return {
+                  ...c,
+                  lastMessage: {
+                    id: result.message!.id,
+                    content: result.message!.content,
+                    senderId: result.message!.senderId,
+                    createdAt: new Date(result.message!.createdAt),
+                    isRead: result.message!.isRead,
+                  },
+                  updatedAt: new Date(result.message!.createdAt),
+                };
+              }
+              return c;
+            })
+        );
+
+        // Gently reconcile queries in the background
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.thread(conversationId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.conversations() });
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
       } else {
+        // Rollback on failure
+        if (context?.previousMessages) {
+          queryClient.setQueryData(
+            queryKeys.messages.thread(conversationId),
+            context.previousMessages
+          );
+        }
+        if (context?.previousConversations) {
+          queryClient.setQueryData(
+            queryKeys.messages.conversations(),
+            context.previousConversations
+          );
+        }
         setInputText((current) => current || text);
         toast.error(result?.error || "Failed to send message");
       }
     },
-    onError: (error, text) => {
+    onError: (error, text, context) => {
       console.error("Failed to send message:", error);
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          queryKeys.messages.thread(conversationId),
+          context.previousMessages
+        );
+      }
+      if (context?.previousConversations) {
+        queryClient.setQueryData(
+          queryKeys.messages.conversations(),
+          context.previousConversations
+        );
+      }
       setInputText((current) => current || text);
       toast.error("Failed to send message");
-    },
-    onSettled: () => {
-      setOptimisticMessages([]);
     },
   });
 
