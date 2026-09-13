@@ -40,3 +40,7 @@ export const updateProfileSchema = z.object({
       { message: "Please enter a valid website URL" }
     ),
 });
+
+export const reactionTypeSchema = z.enum(["LIKE", "FIRE", "CLAP", "IDEA", "LAUGH"]);
+export type ReactionType = z.infer<typeof reactionTypeSchema>;
+

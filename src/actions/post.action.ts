@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDbUserId } from "./user.action";
 import prisma from "@/lib/prisma";
-import { createCommentSchema, createPostSchema } from "@/lib/validations";
+import { createCommentSchema, createPostSchema, ReactionType, reactionTypeSchema } from "@/lib/validations";
 
 export async function createPost(content: string, image: string) {
     try {
@@ -59,6 +59,7 @@ const postInclude = {
     likes: {
         select: {
             userId: true,
+            type: true,
         },
     },
     bookmarks: {
@@ -161,10 +162,14 @@ export async function getFollowingPosts(options?: { cursor?: string; limit?: num
     }
 }
 
-export async function toggleLike(postId: string) {
+export async function toggleLike(postId: string, reactionType?: ReactionType) {
     try {
         const userId = await getDbUserId();
-        if (!userId) return;
+        if (!userId) return { success: false, error: "Unauthorized" };
+
+        const targetReaction: ReactionType = reactionType && reactionTypeSchema.safeParse(reactionType).success
+            ? reactionType
+            : "LIKE";
 
         const existingLike = await prisma.like.findUnique({
             where: {
@@ -183,42 +188,113 @@ export async function toggleLike(postId: string) {
         if (!post) throw new Error("Post not found");
 
         if (existingLike) {
-            await prisma.like.delete({
-                where: {
-                    userId_postId: {
-                        userId,
-                        postId,
+            // If user clicked the same reaction, remove it (toggle off)
+            if (existingLike.type === targetReaction && (!reactionType || reactionType === existingLike.type)) {
+                await prisma.like.delete({
+                    where: {
+                        userId_postId: {
+                            userId,
+                            postId,
+                        },
                     },
-                },
-            });
+                });
+                revalidatePath("/");
+                return { success: true, reaction: null };
+            } else {
+                // If user selected a different reaction, update it
+                const updated = await prisma.like.update({
+                    where: {
+                        userId_postId: {
+                            userId,
+                            postId,
+                        },
+                    },
+                    data: {
+                        type: targetReaction,
+                    },
+                });
+                revalidatePath("/");
+                return { success: true, reaction: updated.type as ReactionType };
+            }
         } else {
+            // User creating a new reaction
             await prisma.$transaction([
                 prisma.like.create({
                     data: {
                         userId,
                         postId,
+                        type: targetReaction,
                     },
                 }),
                 ...(post.authorId !== userId
                     ? [
                         prisma.notification.create({
-                        data: {
-                            type: "LIKE",
-                            userId: post.authorId,
-                            creatorId: userId,
-                            postId,
-                        },
+                            data: {
+                                type: "LIKE",
+                                userId: post.authorId,
+                                creatorId: userId,
+                                postId,
+                            },
                         }),
                     ]
-                : []),
+                    : []),
             ]);
-        }
 
-        revalidatePath("/");
-        return { success: true };
+            revalidatePath("/");
+            return { success: true, reaction: targetReaction };
+        }
     } catch (error) {
-        console.error("Failed to toggle like:", error);
-        return { success: false, error: "Failed to toggle like" };
+        console.error("Failed to toggle reaction:", error);
+        return { success: false, error: "Failed to toggle reaction" };
+    }
+}
+
+export async function getPostReactions(postId: string) {
+    try {
+        const currentUserId = await getDbUserId();
+
+        const reactions = await prisma.like.findMany({
+            where: { postId },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                        image: true,
+                        bio: true,
+                        followers: currentUserId
+                            ? {
+                                  where: {
+                                      followerId: currentUserId,
+                                  },
+                                  select: {
+                                      followerId: true,
+                                  },
+                              }
+                            : false,
+                        _count: {
+                            select: {
+                                followers: true,
+                                following: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        return reactions.map((r) => ({
+            ...r.user,
+            reactionType: r.type as ReactionType,
+            isFollowing: currentUserId ? (r.user.followers?.length ?? 0) > 0 : false,
+        }));
+    } catch (error) {
+        console.error("Error fetching post reactions:", error);
+        return [];
     }
 }
 

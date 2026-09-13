@@ -69,10 +69,11 @@ model Comment{
 }
 
 model Like {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   postId    String
   userId    String
-  createdAt DateTime @default(now())
+  type      ReactionType @default(LIKE)
+  createdAt DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -116,6 +117,14 @@ enum NotificationType {
   LIKE
   COMMENT
   FOLLOW
+}
+
+enum ReactionType {
+  LIKE
+  FIRE
+  CLAP
+  IDEA
+  LAUGH
 }
 
 model Bookmark {

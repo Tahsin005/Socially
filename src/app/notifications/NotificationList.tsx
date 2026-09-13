@@ -75,7 +75,7 @@ export default async function NotificationList() {
                       {notification.type === "FOLLOW"
                         ? "started following you"
                         : notification.type === "LIKE"
-                        ? "liked your post"
+                        ? "reacted to your post"
                         : "commented on your post"}
                     </span>
                   </div>

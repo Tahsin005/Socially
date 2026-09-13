@@ -45,6 +45,7 @@ const postInclude = {
   likes: {
     select: {
       userId: true,
+      type: true,
     },
   },
   bookmarks: {
