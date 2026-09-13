@@ -38,7 +38,7 @@ export default function MessagesClient({
   // Poll conversations every 6 seconds
   const { data: conversations = initialConversations, isLoading } = useQuery({
     queryKey: queryKeys.messages.conversations(),
-    queryFn: getConversations,
+    queryFn: () => getConversations(),
     initialData: initialConversations,
     refetchInterval: 6000,
     refetchIntervalInBackground: false,

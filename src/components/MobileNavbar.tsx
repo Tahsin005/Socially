@@ -32,10 +32,14 @@ function MobileNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: MobileNavbar
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { isSignedIn } = useAuth();
   const { user } = useUser();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   const profileLink = user
-    ? `/profile/${user.username ?? user.emailAddresses[0]?.emailAddress.split("@")[0]}`
+    ? `/profile/${
+        user.username ??
+        user.emailAddresses[0]?.emailAddress?.split("@")[0] ??
+        user.id
+      }`
     : "/profile";
 
   const hasAnyUnread = unreadCount > 0 || unreadMessagesCount > 0;
@@ -52,7 +56,7 @@ function MobileNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: MobileNavbar
       <Button
         variant="ghost"
         size="icon"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       >
         <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -109,6 +113,7 @@ function MobileNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: MobileNavbar
                   variant="ghost"
                   className="flex items-center justify-between w-full"
                   asChild
+                  onClick={() => setShowMobileMenu(false)}
                 >
                   <Link href="/notifications">
                     <span className="flex items-center gap-3">
@@ -127,6 +132,7 @@ function MobileNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: MobileNavbar
                   variant="ghost"
                   className="flex items-center gap-3 justify-start"
                   asChild
+                  onClick={() => setShowMobileMenu(false)}
                 >
                   <Link href={profileLink}>
                     <UserIcon className="w-4 h-4" />

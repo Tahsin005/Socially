@@ -52,6 +52,15 @@ function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps
     const [isBookmarking, setIsBookmarking] = useState(false);
     const [showComments, setShowComments] = useState(defaultShowComments);
 
+    useEffect(() => {
+        setComments(post.comments);
+        setLikes(post.likes);
+        setUserReaction(
+            (post.likes.find((like) => like.userId === dbUserId)?.type as ReactionType | undefined) ?? null
+        );
+        setHasBookmarked(post.bookmarks?.some((b) => b.userId === dbUserId) ?? false);
+    }, [post, dbUserId]);
+
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 

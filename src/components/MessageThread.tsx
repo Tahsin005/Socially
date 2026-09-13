@@ -117,18 +117,20 @@ export default function MessageThread({
       };
       setOptimisticMessages((prev) => [...prev, tempMessage]);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, text) => {
       if (result?.success && result.message) {
         // Sync server thread & conversation list
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.thread(conversationId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.conversations() });
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
       } else {
+        setInputText((current) => current || text);
         toast.error(result?.error || "Failed to send message");
       }
     },
-    onError: (error) => {
+    onError: (error, text) => {
       console.error("Failed to send message:", error);
+      setInputText((current) => current || text);
       toast.error("Failed to send message");
     },
     onSettled: () => {

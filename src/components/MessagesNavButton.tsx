@@ -20,7 +20,7 @@ export default function MessagesNavButton({
 }: MessagesNavButtonProps) {
   const { data: unreadCount = initialCount } = useQuery({
     queryKey: queryKeys.messages.unreadCount(),
-    queryFn: getUnreadMessagesCount,
+    queryFn: () => getUnreadMessagesCount(),
     initialData: initialCount,
     refetchInterval: 8000,
     refetchIntervalInBackground: false,

@@ -19,13 +19,18 @@ export async function syncUser() {
 
         if (existingUser) return existingUser;
 
+        const email = user.emailAddresses[0]?.emailAddress ?? `${userId}@socially.local`;
+        const username =
+            user.username ??
+            user.emailAddresses[0]?.emailAddress?.split("@")[0] ??
+            userId;
+
         const dbUser = await prisma.user.create({
             data: {
                 clerkId: userId,
-                name: `${user.firstName || ""} ${user.lastName || ""}`,
-                username:
-                user.username ?? user.emailAddresses[0].emailAddress.split("@")[0],
-                email: user.emailAddresses[0].emailAddress,
+                name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || username,
+                username,
+                email,
                 image: user.imageUrl,
             },
         });
@@ -58,10 +63,10 @@ export async function getDbUserId() {
     if (!clerkId) return null;
 
     const user = await getUserByClerkId(clerkId);
+    if (user) return user.id;
 
-    if (!user) throw new Error("User not found");
-
-    return user.id;
+    const synced = await syncUser();
+    return synced?.id ?? null;
 }
 
 export async function getRandomUsers() {

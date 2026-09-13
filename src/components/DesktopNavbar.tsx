@@ -38,7 +38,9 @@ async function DesktopNavbar({ unreadCount = 0, unreadMessagesCount = 0 }: Deskt
                     <Button variant="ghost" className="flex items-center gap-2" asChild>
                         <Link
                             href={`/profile/${
-                                user.username ?? user.emailAddresses[0].emailAddress.split("@")[0]
+                                user.username ??
+                                user.emailAddresses[0]?.emailAddress?.split("@")[0] ??
+                                user.id
                             }`}
                         >
                             <UserIcon className="w-4 h-4" />
