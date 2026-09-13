@@ -32,54 +32,126 @@ export async function createPost(content: string, image: string) {
     }
 }
 
-export async function getPosts() {
+const postInclude = {
+    author: {
+        select: {
+            id: true,
+            name: true,
+            image: true,
+            username: true,
+        },
+    },
+    comments: {
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    username: true,
+                    image: true,
+                    name: true,
+                },
+            },
+        },
+        orderBy: {
+            createdAt: "asc" as const,
+        },
+    },
+    likes: {
+        select: {
+            userId: true,
+        },
+    },
+    _count: {
+        select: {
+            likes: true,
+            comments: true,
+        },
+    },
+};
+
+export type PostWithDetails = NonNullable<Awaited<ReturnType<typeof getPostById>>>;
+
+export async function getPosts(options?: { cursor?: string; limit?: number }) {
     try {
+        const limit = options?.limit ?? 10;
+        const cursor = options?.cursor;
+
         const posts = await prisma.post.findMany({
+            take: limit + 1,
+            cursor: cursor ? { id: cursor } : undefined,
+            skip: cursor ? 1 : 0,
             orderBy: {
                 createdAt: "desc",
             },
-            include: {
-                author: {
-                    select: {
-                        id: true,
-                        name: true,
-                        image: true,
-                        username: true,
-                    },
-                },
-                comments: {
-                    include: {
-                        author: {
-                            select: {
-                                id: true,
-                                username: true,
-                                image: true,
-                                name: true,
-                            },
-                        },
-                    },
-                    orderBy: {
-                        createdAt: "asc",
-                    },
-                },
-                likes: {
-                    select: {
-                        userId: true,
-                    },
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        comments: true,
-                    },
-                },
-            },
+            include: postInclude,
         });
 
-        return posts;
+        const hasMore = posts.length > limit;
+        const items = hasMore ? posts.slice(0, limit) : posts;
+        const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+        return {
+            posts: items,
+            nextCursor,
+        };
     } catch (error) {
         console.log("Error in getPosts", error);
         throw new Error("Failed to fetch posts");
+    }
+}
+
+export async function getPostById(postId: string) {
+    try {
+        const post = await prisma.post.findUnique({
+            where: { id: postId },
+            include: postInclude,
+        });
+
+        return post;
+    } catch (error) {
+        console.error("Error in getPostById:", error);
+        return null;
+    }
+}
+
+export async function getFollowingPosts(options?: { cursor?: string; limit?: number }) {
+    try {
+        const userId = await getDbUserId();
+        if (!userId) return { posts: [], nextCursor: null };
+
+        const limit = options?.limit ?? 10;
+        const cursor = options?.cursor;
+
+        const posts = await prisma.post.findMany({
+            take: limit + 1,
+            cursor: cursor ? { id: cursor } : undefined,
+            skip: cursor ? 1 : 0,
+            where: {
+                author: {
+                    followers: {
+                        some: {
+                            followerId: userId,
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+            include: postInclude,
+        });
+
+        const hasMore = posts.length > limit;
+        const items = hasMore ? posts.slice(0, limit) : posts;
+        const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+        return {
+            posts: items,
+            nextCursor,
+        };
+    } catch (error) {
+        console.error("Error in getFollowingPosts:", error);
+        return { posts: [], nextCursor: null };
     }
 }
 

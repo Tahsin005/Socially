@@ -1,5 +1,5 @@
 'use client';
-import { createComment, deleteComment, deletePost, getPosts, toggleLike } from "@/actions/post.action";
+import { createComment, deleteComment, deletePost, getPosts, PostWithDetails, toggleLike } from "@/actions/post.action";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import toast from "react-hot-toast";
@@ -9,14 +9,22 @@ import { Card, CardContent } from "./ui/card";
 import Link from "next/link";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { HeartIcon, LogInIcon, MessageCircleIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { HeartIcon, LogInIcon, MessageCircleIcon, SendIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { DeleteAlertDialog } from "./DeleteAlertDialog";
+import { useRouter } from "next/navigation";
 
-type Posts = Awaited<ReturnType<typeof getPosts>>;
-type Post = Posts[number];
-function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
+type Post = PostWithDetails;
+
+interface PostCardProps {
+    post: Post;
+    dbUserId: string | null;
+    defaultShowComments?: boolean;
+}
+
+function PostCard({ post, dbUserId, defaultShowComments = false }: PostCardProps) {
     const { user } = useUser();
+    const router = useRouter();
     const [comments, setComments] = useState(post.comments);
     const [newComment, setNewComment] = useState("");
     const [isCommenting, setIsCommenting] = useState(false);
@@ -25,7 +33,7 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
     const [isDeletingCommentId, setIsDeletingCommentId] = useState<string | null>(null);
     const [hasLiked, setHasLiked] = useState(post.likes.some((like) => like.userId === dbUserId));
     const [optimisticLikes, setOptmisticLikes] = useState(post._count.likes);
-    const [showComments, setShowComments] = useState(false);
+    const [showComments, setShowComments] = useState(defaultShowComments);
 
     const handleLike = async () => {
         if (isLiking) return;
@@ -86,8 +94,14 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
         try {
             setIsDeleting(true);
             const result = await deletePost(post.id);
-            if (result.success) toast.success("Post deleted successfully");
-            else throw new Error(result.error);
+            if (result.success) {
+                toast.success("Post deleted successfully");
+                if (typeof window !== "undefined" && window.location.pathname.startsWith(`/post/${post.id}`)) {
+                    router.push("/");
+                }
+            } else {
+                throw new Error(result.error);
+            }
         } catch (error) {
             toast.error("Failed to delete post");
         } finally {
@@ -95,6 +109,28 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
         }
     }
 
+    const handleShare = async () => {
+        try {
+            const postUrl = `${window.location.origin}/post/${post.id}`;
+            if (navigator.share) {
+                await navigator.share({
+                    title: `Post by ${post.author.name}`,
+                    text: post.content || undefined,
+                    url: postUrl,
+                });
+            } else {
+                await navigator.clipboard.writeText(postUrl);
+                toast.success("Post link copied to clipboard!");
+            }
+        } catch {
+            try {
+                await navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+                toast.success("Post link copied to clipboard!");
+            } catch {
+                toast.error("Failed to copy link");
+            }
+        }
+    };
 
     return (
         <Card className="overflow-hidden">
@@ -119,7 +155,9 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                                         <Link href={`/profile/${post.author.username}`}>@{post.author.username}</Link>
                                         <span>•</span>
-                                        <span>{formatDistanceToNow(new Date(post.createdAt))} ago</span>
+                                        <Link href={`/post/${post.id}`} className="hover:underline">
+                                            {formatDistanceToNow(new Date(post.createdAt))} ago
+                                        </Link>
                                     </div>
                                 </div>
                                 {dbUserId === post.author.id && (
@@ -172,6 +210,17 @@ function PostCard({ post, dbUserId }: { post: Post; dbUserId: string | null }) {
                                 className={`size-5 ${showComments ? "fill-blue-500 text-blue-500" : ""}`}
                             />
                             <span>{comments.length}</span>
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground gap-2 hover:text-green-500"
+                            onClick={handleShare}
+                            title="Share post"
+                        >
+                            <Share2Icon className="size-5" />
+                            <span className="hidden sm:inline text-xs">Share</span>
                         </Button>
                     </div>
 

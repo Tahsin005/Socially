@@ -83,7 +83,10 @@ export default async function NotificationList() {
                   {notification.post &&
                   (notification.type === "LIKE" || notification.type === "COMMENT") && (
                     <div className="pl-6 space-y-2">
-                      <div className="text-sm text-muted-foreground rounded-md p-2 bg-muted/30 mt-2">
+                      <Link
+                        href={`/post/${notification.postId}`}
+                        className="block text-sm text-muted-foreground rounded-md p-2 bg-muted/30 mt-2 hover:bg-muted/60 transition-colors"
+                      >
                         <p>{notification.post.content}</p>
                         {notification.post.image && (
                           <img
@@ -92,7 +95,7 @@ export default async function NotificationList() {
                             className="mt-2 rounded-md w-full max-w-[200px] h-auto object-cover"
                           />
                         )}
-                      </div>
+                      </Link>
 
                       {notification.type === "COMMENT" && notification.comment && (
                         <div className="text-sm p-2 bg-accent/50 rounded-md">
